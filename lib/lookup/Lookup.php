@@ -64,7 +64,7 @@ class Lookup
     public function lookupHosts($topic)
     {
         $lookupHosts = [];
-
+        $topicChannel = [];
         foreach ($this->hosts as $host) {
             if (strpos($host, ':') === FALSE) {
                 $host .= ':4161';
@@ -86,6 +86,7 @@ class Lookup
             $result = curl_exec($ch);
             if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
                 $result = json_decode($result, TRUE);
+                print_r($result);
                 $producers = isset($result['data'], $result['data']['producers']) ? $result['data']['producers'] : [];
                 foreach ($producers as $prod) {
                     if (isset($prod['address'])) {
@@ -96,6 +97,7 @@ class Lookup
                     $h = "{$address}:{$prod['tcp_port']}";
                     if (!in_array($h, $lookupHosts)) {
                         $lookupHosts[] = $h;
+                        $topicChannel[$h]['channels'] = isset($result['data']['channels']) ? $result['data']['channels'] : [];
                     }
                 }
                 curl_close($ch);
@@ -106,6 +108,9 @@ class Lookup
                 throw new LookupException($err, -1);
             }
         }
-        return $lookupHosts;
+        return [
+            'lookupHosts'  => $lookupHosts,
+            'topicChannel' => $topicChannel
+        ];
     }
 }

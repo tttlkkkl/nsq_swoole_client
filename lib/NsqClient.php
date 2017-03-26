@@ -10,6 +10,8 @@ namespace lib;
 
 use lib\client\ClientInterface;
 use Swoole\Client as SwooleCilent;
+use lib\client\Client;
+use lib\lookup\Lookup;
 
 class NsqClient
 {
@@ -21,12 +23,38 @@ class NsqClient
     }
 
     /**
+     * 订阅
+     *
+     * @param $lookupHosts
+     * @param $topic
+     * @param string $channel
+     *
+     * @return bool
+     * @throws exception\LookupException
+     */
+    public function sub($lookupHosts, $topic, $channel = '')
+    {
+        $Lookup = new Lookup($lookupHosts);
+        $nsqdList = $Lookup->lookupHosts($topic);
+        if (!$nsqdList || !is_array($nsqdList)) {
+            return false;
+        }
+        foreach ($nsqdList['lookupHosts'] as $host) {
+            if (!$channel) {
+                $channel = isset($nsqdList['topicChannel'][$host][0]) ? $nsqdList['topicChannel'][$host][0] : 'nsq_swoole_client';
+            }
+            $Client = new Client($topic, $channel);
+            $this->init($Client, $host);
+        }
+    }
+
+    /**
      * 启动一个客户端
      *
      * @param ClientInterface $Client
-     * @param $hosts
+     * @param string $nsqdHost
      */
-    public function init(ClientInterface $Client, $hosts)
+    public function init(ClientInterface $Client, $nsqdHost)
     {
         $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
         $SwooleClient->on("connect", [$Client, 'onConnect']);
@@ -40,11 +68,11 @@ class NsqClient
             'package_length_offset' => 0,       //第N个字节是包长度的值
             'package_body_offset'   => 4,       //第几个字节开始计算长度
         ]);
-        if (($i = strpos($hosts, ':')) === false) {
+        if (($i = strpos($nsqdHost, ':')) === false) {
             $port = 4151;
         } else {
-            $host = substr($hosts, 0, $i);
-            $port = substr($hosts, $i + 1);
+            $host = substr($nsqdHost, 0, $i);
+            $port = substr($nsqdHost, $i + 1);
         }
         swoole_async_dns_lookup($host, function ($host, $ip) use ($SwooleClient, $port) {
             $SwooleClient->connect($ip, $port);

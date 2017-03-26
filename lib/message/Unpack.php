@@ -67,7 +67,7 @@ class Unpack
      *
      * @return bool
      */
-    private static function checkMessage(array $frame, $type, $response)
+    private static function checkMessage(array $frame, $type, $response = null)
     {
         return isset($frame['type'], $frame['msg'])
         && $frame['type'] === $type

@@ -15,6 +15,9 @@ class NsqClient
 {
     public function __construct()
     {
+        if (!extension_loaded('swoole')) {
+            exit(-1);
+        }
     }
 
     /**

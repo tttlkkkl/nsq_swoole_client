@@ -8,7 +8,15 @@
  */
 namespace lib\client;
 
-use lib\client\ClientInterface;
+use lib\Dedupe\Dedupe;
+use lib\Dedupe\DedupeInterface;
+use lib\handle\Handle;
+use lib\handle\HandleInterface;
+use lib\log\Log;
+use lib\log\LogInterface;
+use lib\message\Message;
+use lib\Requeue\Requeue;
+use lib\Requeue\RequeueInterface;
 use Swoole\Client as SwooleClient;
 use lib\message\Packet;
 use lib\message\Unpack;
@@ -44,12 +52,53 @@ class Client implements ClientInterface
      */
     private $userAgent = 'nsq_swoole_client';
 
-    public function __construct($topic, $channel, $hostName = '', $clientId = '')
+    /**
+     * 日志类
+     * @var Log|LogInterface
+     */
+    private $Log;
+
+    /**
+     * 消息去重
+     * @var Dedupe|DedupeInterface
+     */
+    private $Dedupe;
+
+    /**
+     * 重新排队判断
+     * @var Requeue|RequeueInterface
+     */
+    private $Requeue;
+    private $Handle;
+    /**
+     * 初始ua数据
+     * @var array
+     */
+    private $init;
+
+    public function __construct(
+        $topic,
+        $channel,
+        HandleInterface $Handle = null,
+        LogInterface $Log = null,
+        DedupeInterface $Dedupe = null,
+        RequeueInterface $Requeue = null,
+        $hostName = '',
+        $clientId = '')
     {
         $this->hostName = $hostName ?: gethostname();
         $this->clientId = $clientId ?: strpos($this->hostName, '.') ? substr($hostName, strpos($hostName, '.')) : $this->hostName;
         $this->topic = $topic;
         $this->channel = $channel;
+        $this->Log = isset($Log) ? $Log : new Log();
+        $this->Dedupe = isset($Dedupe) ? $Dedupe : new Dedupe();
+        $this->Requeue = isset($Requeue) ? $Requeue : new Requeue();
+        $this->Handle = isset($Handle) ? $Handle : new Handle();
+        //响应次数和成功响应次数，用于判断是否订阅成功
+        $this->init = [
+            'ok'       => 0,
+            'response' => 0
+        ];
     }
 
     /**
@@ -63,15 +112,17 @@ class Client implements ClientInterface
     {
         //约定通信协议
         $client->send(Packet::getMagic());
+        $this->Log->debug('约定通信协议');
         //协商相关配置
         $client->send(Packet::identify([
             'client_id'  => $this->clientId,
             'hostname'   => $this->hostName,
             'user_agent' => $this->userAgent
         ]));
+        $this->Log->debug('服务协商');
         //订阅话题频道
         $client->send(Packet::sub($this->topic, $this->channel));
-        $client->send(Packet::rdy(1));
+        $this->Log->debug('订阅' . $this->topic . ':' . $this->channel);
     }
 
     /**
@@ -96,8 +147,27 @@ class Client implements ClientInterface
      */
     public function onReceive(SwooleClient $client, $data)
     {
-        echo '收到数据', "\n";
-        var_dump(Unpack::getFrame($data));
+        $frame = Unpack::getFrame($data);
+        $this->init['response'] += 1;
+        if (Unpack::isHeartbeat($frame)) {
+            $client->send(Packet::nop());
+            $this->Log->debug('心跳查询');
+        } elseif (Unpack::isOk($frame)) {
+            $this->init['ok'] += 1;
+            $this->Log->debug('成功响应:' . $frame['msg']);
+            if (2 === $this->init['response'] && 2 === $this->init['response']) {
+                $this->Log->info('订阅成功，开始第一条消费');
+            }
+            $client->send(Packet::rdy(1));
+        } elseif (Unpack::isError($frame)) {
+            $this->Log->warn('错误响应' . $frame['msg']);
+        } elseif (Unpack::isMessage($frame)) {
+            $this->Log->debug('收到消费消息:' . $frame['msg']);
+            $this->handleMessage($client, $frame);
+            $client->send(Packet::rdy(1));
+        } else {
+            $this->Log->warn('未知的响应');
+        }
     }
 
     /**
@@ -109,6 +179,47 @@ class Client implements ClientInterface
      */
     public function onClose(SwooleClient $client)
     {
-        echo "关闭客户端\n";
+        $this->Log->debug('连接断开');
+    }
+
+    /**
+     * 消息处理
+     *
+     * @param SwooleClient $client
+     * @param array $frame
+     */
+    private function handleMessage(SwooleClient $client, array $frame)
+    {
+        $message = new Message($frame);
+        //消息重复
+        if ($this->Dedupe->add($this->topic, $this->channel, $message)) {
+            $this->Log->debug('重复消息：' . json_encode($frame));
+            $client->send(Packet::fin($message->getId()));
+            $client->send(Packet::rdy(1));
+        } else {
+            try {
+                $handle = $this->Handle->handle($message);
+            } catch (\Exception $E) {
+                $handle = false;
+            }
+            if ($handle) {
+                $this->Log->info('消息处理完毕:' . json_encode($frame));
+                $client->send(Packet::fin($message->getId()));
+                $client->send(Packet::rdy(1));
+                $this->Log->debug('准备接收消息');
+            } else {
+                $this->Log->error('消息处理出错:' . json_encode($frame));
+                if (($timeout = $this->Requeue->shouldRequeue($message)) !== null) {
+                    if ($client->send(Packet::req($message->getId(), $timeout))) {
+                        $this->Dedupe->clear($this->topic, $this->channel, $message);
+                        $this->Log->info('消息重新排队:' . json_encode($frame));
+                    } else {
+                        $this->Log->debug('消息排队失败:' . json_encode($frame));
+                    }
+                } else {
+                    $this->Log->info('消息被丢弃:' . json_encode($frame));
+                }
+            }
+        }
     }
 }

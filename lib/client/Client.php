@@ -107,9 +107,35 @@ class Client implements ClientInterface {
      */
     private $reconnects;
 
+    /**
+     * 服务端是否需要认证
+     *
+     * @var
+     */
+    private $authRequired;
+
+    /**
+     * 认证信息
+     * @var
+     */
+    private $authSecret;
+
+    /**
+     * Client constructor.
+     * @param $topic
+     * @param $channel
+     * @param string $authSecret
+     * @param HandleInterface|null $Handle
+     * @param LogInterface|null $Log
+     * @param DedupeInterface|null $Dedupe
+     * @param RequeueInterface|null $Requeue
+     * @param string $hostName
+     * @param string $clientId
+     */
     public function __construct(
         $topic,
         $channel,
+        $authSecret = '',
         HandleInterface $Handle = null,
         LogInterface $Log = null,
         DedupeInterface $Dedupe = null,
@@ -125,6 +151,9 @@ class Client implements ClientInterface {
         $this->Dedupe = isset($Dedupe) ? $Dedupe : new Dedupe();
         $this->Requeue = isset($Requeue) ? $Requeue : new Requeue();
         $this->Handle = isset($Handle) ? $Handle : new Handle();
+        $this->authSecret = $authSecret;
+        //默认需要授权，服务协商成功后确认实际是否需要授权
+        $this->authRequired = true;
         //响应次数和成功响应次数，用于判断是否订阅成功
         $this->init = [
             'ok'       => 0,
@@ -147,14 +176,12 @@ class Client implements ClientInterface {
         $this->Log->debug('约定通信协议');
         //协商相关配置
         $client->send(Packet::identify([
-            'client_id'  => $this->clientId,
-            'hostname'   => $this->hostName,
-            'user_agent' => $this->userAgent
+            'client_id'           => $this->clientId,
+            'hostname'            => $this->hostName,
+            'user_agent'          => $this->userAgent,
+            'feature_negotiation' => true
         ]));
         $this->Log->debug('服务协商');
-        //订阅话题频道
-        $client->send(Packet::sub($this->topic, $this->channel));
-        $this->Log->debug('订阅' . $this->topic . ':' . $this->channel);
     }
 
     /**
@@ -187,16 +214,51 @@ class Client implements ClientInterface {
             $this->Log->debug('成功响应:' . $frame['msg']);
             if (2 === $this->init['response'] && 2 === $this->init['response']) {
                 $this->Log->info('订阅成功，开始第一条消费');
+                $client->send(Packet::rdy(1));
             }
-            $client->send(Packet::rdy(1));
         } elseif (Unpack::isError($frame)) {
             $this->Log->warn('错误响应' . $frame['msg']);
         } elseif (Unpack::isMessage($frame)) {
             $this->Log->debug('收到消费消息:' . $frame['msg']);
             $this->handleMessage($client, $frame);
             $client->send(Packet::rdy(1));
+        } elseif (Unpack::isResponse($frame) && ($identify = json_decode($frame['msg'], true))) {
+            //服务协商数据，检查是否需要授权
+            $this->Log->info('收到服务协商数据:' . $frame['msg']);
+            if (is_array($identify) && isset($identify['auth_required']) && $identify['auth_required']) {
+                $this->authRequired = true;
+            } else {
+                $this->authRequired = false;
+            }
+            $this->sub($client);
         } else {
             $this->Log->warn('未知的响应');
+        }
+    }
+
+    /**
+     * 服务订阅
+     * 
+     * @param SwooleClient $client
+     * @return bool
+     */
+    private function sub(SwooleClient $client) {
+        if($this->auth($client)){
+            //订阅话题频道
+            $client->send(Packet::sub($this->topic, $this->channel));
+            $this->Log->debug('订阅' . $this->topic . ':' . $this->channel);
+        }else{
+            $this->Log->error('授权信息缺失');
+        }
+    }
+
+    private function auth(SwooleClient $client) {
+        if ($this->authRequired && $this->authSecret) {
+            return $client->send(Packet::auth($this->authSecret));
+        }elseif($this->authRequired && !$this->authSecret){
+            return false;
+        }else{
+            return true;
         }
     }
 

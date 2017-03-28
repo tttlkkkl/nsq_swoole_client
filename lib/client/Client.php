@@ -22,8 +22,11 @@ use lib\message\Packet;
 use lib\message\Unpack;
 use lib\exception\ClientException;
 
-class Client implements ClientInterface
-{
+class Client implements ClientInterface {
+    /**
+     * 断开重连间隔，秒
+     */
+    const RECONNECT_INTERVAL = 5;
     /**
      * 主机名
      * @var string
@@ -69,12 +72,40 @@ class Client implements ClientInterface
      * @var Requeue|RequeueInterface
      */
     private $Requeue;
+
+    /**
+     * @var Handle|HandleInterface
+     */
     private $Handle;
     /**
      * 初始ua数据
      * @var array
      */
     private $init;
+
+    /**
+     * ip用于断线重连
+     * @var
+     */
+    private $ip;
+
+    /**
+     * 用于断线重连
+     * @var
+     */
+    private $port;
+
+    /**
+     * 定时器
+     * @var
+     */
+    private $timer;
+
+    /**
+     * 重试连接次数
+     * @var
+     */
+    private $reconnects;
 
     public function __construct(
         $topic,
@@ -84,10 +115,10 @@ class Client implements ClientInterface
         DedupeInterface $Dedupe = null,
         RequeueInterface $Requeue = null,
         $hostName = '',
-        $clientId = '')
-    {
+        $clientId = '') {
         $this->hostName = $hostName ?: gethostname();
-        $this->clientId = $clientId ?: strpos($this->hostName, '.') ? substr($hostName, strpos($hostName, '.')) : $this->hostName;
+        $this->clientId = ($clientId && is_string($clientId)) ? $clientId :
+            (strpos($this->hostName, '.') ? substr($this->hostName, strpos($this->hostName, '.')) : $this->hostName);
         $this->topic = $topic;
         $this->channel = $channel;
         $this->Log = isset($Log) ? $Log : new Log();
@@ -108,8 +139,9 @@ class Client implements ClientInterface
      *
      * @return mixed
      */
-    public function onConnect(SwooleClient $client)
-    {
+    public function onConnect(SwooleClient $client) {
+        //重置定时器
+        $this->resetTimer($client);
         //约定通信协议
         $client->send(Packet::getMagic());
         $this->Log->debug('约定通信协议');
@@ -132,9 +164,8 @@ class Client implements ClientInterface
      *
      * @return mixed
      */
-    public function onError(SwooleClient $client)
-    {
-        echo "error", "\n";
+    public function onError(SwooleClient $client) {
+        $this->Log->error('服务器连接失败');
     }
 
     /**
@@ -145,8 +176,7 @@ class Client implements ClientInterface
      *
      * @return mixed
      */
-    public function onReceive(SwooleClient $client, $data)
-    {
+    public function onReceive(SwooleClient $client, $data) {
         $frame = Unpack::getFrame($data);
         $this->init['response'] += 1;
         if (Unpack::isHeartbeat($frame)) {
@@ -177,9 +207,40 @@ class Client implements ClientInterface
      *
      * @return mixed
      */
-    public function onClose(SwooleClient $client)
-    {
-        $this->Log->debug('连接断开');
+    public function onClose(SwooleClient $client) {
+        $this->Log->warn('连接断开...');
+        $this->resetTimer($client);
+        $this->timer || $this->timer = swoole_timer_tick(self::RECONNECT_INTERVAL * 1000, function () use ($client) {
+            if (!$client->isConnected()) {
+                $this->reconnects += 1;
+                $this->Log->info('正在尝试重连...第' . $this->reconnects . '次...');
+                $client->connect($this->ip, $this->port);
+            }
+        });
+    }
+
+    /**
+     * 重置定时器
+     *
+     * @param SwooleClient $client
+     */
+    private function resetTimer(SwooleClient $client) {
+        $this->reconnects = 0;
+        if ($this->timer && $client->isConnected()) {
+            swoole_timer_clear($this->timer);
+            $this->timer = 0;
+        }
+    }
+
+    /**
+     * 设置目标端点的连接信息,用于断线重连
+     *
+     * @param $ip
+     * @param $port
+     */
+    public function setHost($ip, $port) {
+        $this->ip = $ip;
+        $this->port = $port;
     }
 
     /**
@@ -188,8 +249,7 @@ class Client implements ClientInterface
      * @param SwooleClient $client
      * @param array $frame
      */
-    private function handleMessage(SwooleClient $client, array $frame)
-    {
+    private function handleMessage(SwooleClient $client, array $frame) {
         $message = new Message($frame);
         //消息重复
         if ($this->Dedupe->add($this->topic, $this->channel, $message)) {

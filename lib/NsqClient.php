@@ -9,14 +9,13 @@
 namespace lib;
 
 use lib\client\ClientInterface;
+use lib\exception\ClientException;
 use Swoole\Client as SwooleCilent;
 use lib\client\Client;
 use lib\lookup\Lookup;
 
-class NsqClient
-{
-    public function __construct()
-    {
+class NsqClient {
+    public function __construct() {
         if (!extension_loaded('swoole')) {
             exit(-1);
         }
@@ -32,12 +31,11 @@ class NsqClient
      * @return bool
      * @throws exception\LookupException
      */
-    public function sub($lookupHosts, $topic, $channel = '')
-    {
+    public function sub($lookupHosts, $topic, $channel = '') {
         $Lookup = new Lookup($lookupHosts);
         $nsqdList = $Lookup->lookupHosts($topic);
-        if (!$nsqdList || !is_array($nsqdList)) {
-            return false;
+        if (!$nsqdList || !isset($nsqdList['lookupHosts']) || !$nsqdList['lookupHosts'] || !is_array($nsqdList['lookupHosts'])) {
+            throw new ClientException('未发现可用服务');
         }
         foreach ($nsqdList['lookupHosts'] as $host) {
             if (!$channel) {
@@ -54,8 +52,7 @@ class NsqClient
      * @param ClientInterface $Client
      * @param string $nsqdHost
      */
-    public function init(ClientInterface $Client, $nsqdHost)
-    {
+    public function init(ClientInterface $Client, $nsqdHost) {
         $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
         $SwooleClient->on("connect", [$Client, 'onConnect']);
         $SwooleClient->on("receive", [$Client, 'onReceive']);
@@ -74,8 +71,12 @@ class NsqClient
             $host = substr($nsqdHost, 0, $i);
             $port = substr($nsqdHost, $i + 1);
         }
-        swoole_async_dns_lookup($host, function ($host, $ip) use ($SwooleClient, $port) {
-            $SwooleClient->connect($ip, $port);
+        swoole_async_dns_lookup($host, function ($host, $ip) use ($SwooleClient, $port, $Client) {
+            if (!$SwooleClient->connect($ip, $port)) {
+                throw new ClientException('无法连接到:' . $host . ':' . $port);
+            } else {
+                $Client->setHost($ip, $port);
+            }
         });
     }
 }

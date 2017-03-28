@@ -48,4 +48,13 @@ interface ClientInterface
      * @return mixed
      */
     public function onClose(SwooleClient $client);
+
+    /**
+     * 设置断线重连参数
+     *
+     * @param $ip
+     * @param $port
+     * @return mixed
+     */
+    public function setHost($ip,$port);
 }

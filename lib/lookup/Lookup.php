@@ -31,6 +31,10 @@ class Lookup
      */
     private $resultesponseTimeout;
 
+    /**
+     * 日志打印
+     * @var Log
+     */
     private $Log;
 
     /**
@@ -83,10 +87,9 @@ class Lookup
                 CURLOPT_FAILONERROR    => TRUE
             );
             curl_setopt_array($ch, $options);
-            $result = curl_exec($ch);
+            $resultString = curl_exec($ch);
             if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
-                $result = json_decode($result, TRUE);
-                print_r($result);
+                $result = json_decode($resultString, TRUE);
                 $producers = isset($result['data'], $result['data']['producers']) ? $result['data']['producers'] : [];
                 foreach ($producers as $prod) {
                     if (isset($prod['address'])) {
@@ -103,7 +106,7 @@ class Lookup
                 curl_close($ch);
             } else {
                 $err = curl_error($ch);
-                $this->Log->error($err . $result);
+                $this->Log->error($err . $resultString);
                 curl_close($ch);
                 throw new LookupException($err, -1);
             }

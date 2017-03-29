@@ -100,8 +100,8 @@ class SynClient implements SynClientInterface {
         $ip,
         $port,
         $topic,
-        LogInterface $Log = null,
         $authSecret = '',
+        LogInterface $Log = null,
         $hostName = '',
         $clientId = ''
     ) {
@@ -174,6 +174,9 @@ class SynClient implements SynClientInterface {
      * @throws ClientException
      */
     private function publish($data) {
+        if(!$this->auth()){
+            throw new ClientException('授权错误',-1);
+        }
         $result = $this->send($data);
         if (Unpack::isOk($result)) {
             return true;
@@ -257,9 +260,10 @@ class SynClient implements SynClientInterface {
             } else {
                 $this->authRequired = false;
             }
-            $this->Log->info('服务协商数据成功!');
+            //var_dump($identify);
+            $this->Log->info('服务协商成功!');
         } else {
-            $this->Log->error('服务协商数据失败!');
+            $this->Log->error('服务协商失败!');
         }
     }
 
@@ -271,7 +275,14 @@ class SynClient implements SynClientInterface {
      */
     private function auth() {
         if ($this->authRequired && $this->authSecret) {
-            return $this->send(Packet::auth($this->authSecret));
+            $result= $this->send(Packet::auth($this->authSecret));
+            if(Unpack::isError($result)){
+                $this->Log->error('授权错误:'.$result['msg'],-1);
+                return false;
+            }elseif (Unpack::isOk($result)){
+                return true;
+            }
+            return false;
         } elseif ($this->authRequired && !$this->authSecret) {
             return false;
         } else {

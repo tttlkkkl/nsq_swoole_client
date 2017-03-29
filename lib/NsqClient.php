@@ -97,7 +97,7 @@ class NsqClient {
      * @throws ClientException
      * @return SynClient
      */
-    public function getSynClient($ip, $port, $topic = '') {
+    public function getSynClient($ip, $port, $topic = '',$authSecret) {
         $key = $ip . ':' . $port;
         if (!isset($this->synClients[$key])) {
             $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP);
@@ -111,7 +111,7 @@ class NsqClient {
             if (!$SwooleClient->connect($ip, $port, -1)) {
                 throw new ClientException('无法连接到远程服务器', -1);
             } else {
-                $synClient = new SynClient($SwooleClient, $ip, $port, $topic);
+                $synClient = new SynClient($SwooleClient, $ip, $port, $topic,$authSecret);
                 $this->synClients[$key]=$synClient;
             }
         }

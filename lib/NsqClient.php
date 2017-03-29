@@ -9,12 +9,19 @@
 namespace lib;
 
 use lib\client\ClientInterface;
+use lib\client\SynClient;
 use lib\exception\ClientException;
 use Swoole\Client as SwooleCilent;
 use lib\client\Client;
 use lib\lookup\Lookup;
 
 class NsqClient {
+    /**
+     * 已实例化的客户端，ip:port 作为键值
+     * @var
+     */
+    private $synClients;
+
     public function __construct() {
         if (!extension_loaded('swoole')) {
             exit(-1);
@@ -78,5 +85,53 @@ class NsqClient {
                 $Client->setHost($ip, $port);
             }
         });
+    }
+
+
+    /**
+     * 获取一个同步阻塞客户端实例
+     *
+     * @param $ip
+     * @param $port
+     * @param string $topic
+     * @throws ClientException
+     * @return SynClient
+     */
+    public function getSynClient($ip, $port, $topic = '') {
+        $key = $ip . ':' . $port;
+        if (!isset($this->synClients[$key])) {
+            $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP);
+            $SwooleClient->set([
+                'package_max_length'    => 1024 * 1024 * 2,
+                'open_length_check'     => true,
+                'package_length_type'   => 'N',
+                'package_length_offset' => 0,       //第N个字节是包长度的值
+                'package_body_offset'   => 4,       //第几个字节开始计算长度
+            ]);
+            if (!$SwooleClient->connect($ip, $port, -1)) {
+                throw new ClientException('无法连接到远程服务器', -1);
+            } else {
+                $synClient = new SynClient($SwooleClient, $ip, $port, $topic);
+                $this->synClients[$key]=$synClient;
+            }
+        }
+        return $this->synClients[$key];
+    }
+
+    /**
+     * 销毁一个同步客户端
+     *
+     * @param $ip
+     * @param $port
+     * @return bool
+     */
+    public function destroySynClient($ip, $port){
+        $key = $ip . ':' . $port;
+        if(isset($this->synClients[$key]) && $this->synClients[$key]->close()){
+            unset($this->synClients[$key]);
+            return true;
+        }else{
+            return false;
+        }
     }
 }

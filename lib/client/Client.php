@@ -1,6 +1,7 @@
 <?php
 
 /**
+ * 异步非阻塞客户端，用于消费
  *
  * Date: 17-3-25
  * Time: 下午9:54
@@ -39,21 +40,22 @@ class Client implements ClientInterface {
      */
     private $clientId;
     /**
+     * 客户端信息
+     * @var string
+     */
+    private $userAgent = 'nsq_swoole_client_sub';
+
+    /**
      * 订阅的话题
      * @var
      */
     private $topic;
+
     /**
      * 频道
      * @var
      */
     private $channel;
-
-    /**
-     * 客户端信息
-     * @var string
-     */
-    private $userAgent = 'nsq_swoole_client';
 
     /**
      * 日志类
@@ -212,7 +214,7 @@ class Client implements ClientInterface {
         } elseif (Unpack::isOk($frame)) {
             $this->init['ok'] += 1;
             $this->Log->debug('成功响应:' . $frame['msg']);
-            if (2 === $this->init['response'] && 2 === $this->init['response']) {
+            if (2 === $this->init['response'] && 2 === $this->init['ok']) {
                 $this->Log->info('订阅成功，开始第一条消费');
                 $client->send(Packet::rdy(1));
             }
@@ -238,7 +240,7 @@ class Client implements ClientInterface {
 
     /**
      * 服务订阅
-     * 
+     *
      * @param SwooleClient $client
      * @return bool
      */
@@ -252,6 +254,12 @@ class Client implements ClientInterface {
         }
     }
 
+    /**
+     * 授权
+     *
+     * @param SwooleClient $client
+     * @return bool
+     */
     private function auth(SwooleClient $client) {
         if ($this->authRequired && $this->authSecret) {
             return $client->send(Packet::auth($this->authSecret));

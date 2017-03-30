@@ -123,6 +123,12 @@ class Client implements ClientInterface {
     private $authSecret;
 
     /**
+     * 是否已授权
+     * @var
+     */
+    private $isAuth;
+
+    /**
      * Client constructor.
      * @param $topic
      * @param $channel
@@ -214,7 +220,8 @@ class Client implements ClientInterface {
         } elseif (Unpack::isOk($frame)) {
             $this->init['ok'] += 1;
             $this->Log->debug('成功响应:' . $frame['msg']);
-            if (2 === $this->init['response'] && 2 === $this->init['ok']) {
+            $response = $this->authRequired ? 3 : 2;
+            if ($response === $this->init['response'] && 1 === $this->init['ok']) {
                 $this->Log->info('订阅成功，开始第一条消费');
                 $client->send(Packet::rdy(1));
             }
@@ -224,15 +231,20 @@ class Client implements ClientInterface {
             $this->Log->debug('收到消费消息:' . $frame['msg']);
             $this->handleMessage($client, $frame);
             $client->send(Packet::rdy(1));
-        } elseif (Unpack::isResponse($frame) && ($identify = json_decode($frame['msg'], true))) {
-            //服务协商数据，检查是否需要授权
-            $this->Log->info('收到服务协商数据:' . $frame['msg']);
-            if (is_array($identify) && isset($identify['auth_required']) && $identify['auth_required']) {
-                $this->authRequired = true;
-            } else {
-                $this->authRequired = false;
+        } elseif (Unpack::isResponse($frame)) {
+            $identify = json_decode($frame['msg'], true);
+            if (isset($identify['auth_required'])) {
+                //服务协商数据，检查是否需要授权
+                $this->Log->info('收到服务协商数据:' . $frame['msg']);
+                $this->authRequired = $identify['auth_required'] ? true : false;
+                $this->isAuth = $this->authRequired ? false : true;
+                //订阅
+                $this->sub($client);
             }
-            $this->sub($client);
+            //收到正确的授权结果
+            if (isset($identify['permission_count']) && $identify['permission_count'] > 0) {
+                $this->isAuth = true;
+            }
         } else {
             $this->Log->warn('未知的响应');
         }
@@ -245,11 +257,11 @@ class Client implements ClientInterface {
      * @return bool
      */
     private function sub(SwooleClient $client) {
-        if($this->auth($client)){
+        if ($this->auth($client)) {
             //订阅话题频道
             $client->send(Packet::sub($this->topic, $this->channel));
             $this->Log->debug('订阅' . $this->topic . ':' . $this->channel);
-        }else{
+        } else {
             $this->Log->error('授权信息缺失');
         }
     }
@@ -261,11 +273,14 @@ class Client implements ClientInterface {
      * @return bool
      */
     private function auth(SwooleClient $client) {
+        if ($this->isAuth) {
+            return true;
+        }
         if ($this->authRequired && $this->authSecret) {
             return $client->send(Packet::auth($this->authSecret));
-        }elseif($this->authRequired && !$this->authSecret){
+        } elseif ($this->authRequired && !$this->authSecret) {
             return false;
-        }else{
+        } else {
             return true;
         }
     }
@@ -279,6 +294,8 @@ class Client implements ClientInterface {
      */
     public function onClose(SwooleClient $client) {
         $this->Log->warn('连接断开...');
+        //设置参数，等待重启
+        $this->init['ok'] = $this->init['response'] = 0;
         $this->resetTimer($client);
         $this->timer || $this->timer = swoole_timer_tick(self::RECONNECT_INTERVAL * 1000, function () use ($client) {
             if (!$client->isConnected()) {

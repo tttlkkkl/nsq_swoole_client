@@ -155,13 +155,13 @@ class Packet {
      * @return string
      */
     public static function auth($secret) {
-        $cmd = self::packing('AUTH', $secret);
+        $cmd = self::packing('AUTH');
         $size = pack('N', strlen($secret));
         return $cmd . $size . $secret;
     }
 
     /**
-     * 封包
+     * 命令前缀
      *
      * @return string
      */

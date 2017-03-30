@@ -85,6 +85,12 @@ class SynClient implements SynClientInterface {
     private $userAgent = 'nsq_swoole_client_pub';
 
     /**
+     * 是否已授权
+     * @var
+     */
+    private $isAuth;
+
+    /**
      * SynClient constructor.
      * @param SwooleCilent $SwooleClient
      * @param $topic
@@ -174,8 +180,8 @@ class SynClient implements SynClientInterface {
      * @throws ClientException
      */
     private function publish($data) {
-        if(!$this->auth()){
-            throw new ClientException('授权错误',-1);
+        if (!$this->auth()) {
+            throw new ClientException('授权错误', -1);
         }
         $result = $this->send($data);
         if (Unpack::isOk($result)) {
@@ -214,6 +220,7 @@ class SynClient implements SynClientInterface {
             return true;
         } else {
             for ($i = 1; $i < self::RETRY_COUNT; $i++) {
+                $this->Log->info('重试第' . $i . '次连接...');
                 if ($this->retryConnection()) {
                     return true;
                 }
@@ -260,7 +267,6 @@ class SynClient implements SynClientInterface {
             } else {
                 $this->authRequired = false;
             }
-            //var_dump($identify);
             $this->Log->info('服务协商成功!');
         } else {
             $this->Log->error('服务协商失败!');
@@ -274,13 +280,24 @@ class SynClient implements SynClientInterface {
      * @return bool
      */
     private function auth() {
+        if ($this->isAuth) {
+            return true;
+        }
         if ($this->authRequired && $this->authSecret) {
-            $result= $this->send(Packet::auth($this->authSecret));
-            if(Unpack::isError($result)){
-                $this->Log->error('授权错误:'.$result['msg'],-1);
-                return false;
-            }elseif (Unpack::isOk($result)){
-                return true;
+            $result = $this->send(Packet::auth($this->authSecret));
+            if (Unpack::isError($result)) {
+                $this->isAuth = true;
+                if ($result['msg'] == 'E_INVALID AUTH Already set') {
+                    return true;
+                }
+                $this->Log->error('授权错误:' . $result['msg'], -1);
+                throw new ClientException('授权失败:' . $result['msg']);
+            } elseif (Unpack::isResponse($result)) {
+                $result = json_decode($result['msg'], true);
+                if (isset($result['permission_count']) && $result['permission_count'] > 0) {
+                    $this->isAuth = 1;
+                    return true;
+                }
             }
             return false;
         } elseif ($this->authRequired && !$this->authSecret) {

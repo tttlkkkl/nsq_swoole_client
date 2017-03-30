@@ -8,4 +8,4 @@
 require('../Bootsrap.php');
 use lib\NsqClient;
 $NsqClient = new NsqClient();
-$NsqClient->sub(['127.0.0.1:4161'],'nsq_common','web_member');
+$NsqClient->sub(['127.0.0.1:4161'],'nsq_common','web_member','auth');

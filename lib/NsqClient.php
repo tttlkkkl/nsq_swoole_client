@@ -38,7 +38,7 @@ class NsqClient {
      * @return bool
      * @throws exception\LookupException
      */
-    public function sub($lookupHosts, $topic, $channel = '') {
+    public function sub($lookupHosts, $topic, $channel = '', $authSecret = '') {
         $Lookup = new Lookup($lookupHosts);
         $nsqdList = $Lookup->lookupHosts($topic);
         if (!$nsqdList || !isset($nsqdList['lookupHosts']) || !$nsqdList['lookupHosts'] || !is_array($nsqdList['lookupHosts'])) {
@@ -48,7 +48,7 @@ class NsqClient {
             if (!$channel) {
                 $channel = isset($nsqdList['topicChannel'][$host][0]) ? $nsqdList['topicChannel'][$host][0] : 'nsq_swoole_client';
             }
-            $Client = new Client($topic, $channel);
+            $Client = new Client($topic, $channel, $authSecret);
             $this->init($Client, $host);
         }
     }
@@ -97,7 +97,7 @@ class NsqClient {
      * @throws ClientException
      * @return SynClient
      */
-    public function getSynClient($ip, $port, $topic = '',$authSecret) {
+    public function getSynClient($ip, $port, $topic = '', $authSecret) {
         $key = $ip . ':' . $port;
         if (!isset($this->synClients[$key])) {
             $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP);
@@ -111,8 +111,8 @@ class NsqClient {
             if (!$SwooleClient->connect($ip, $port, -1)) {
                 throw new ClientException('无法连接到远程服务器', -1);
             } else {
-                $synClient = new SynClient($SwooleClient, $ip, $port, $topic,$authSecret);
-                $this->synClients[$key]=$synClient;
+                $synClient = new SynClient($SwooleClient, $ip, $port, $topic, $authSecret);
+                $this->synClients[$key] = $synClient;
             }
         }
         return $this->synClients[$key];
@@ -125,12 +125,12 @@ class NsqClient {
      * @param $port
      * @return bool
      */
-    public function destroySynClient($ip, $port){
+    public function destroySynClient($ip, $port) {
         $key = $ip . ':' . $port;
-        if(isset($this->synClients[$key]) && $this->synClients[$key]->close()){
+        if (isset($this->synClients[$key]) && $this->synClients[$key]->close()) {
             unset($this->synClients[$key]);
             return true;
-        }else{
+        } else {
             return false;
         }
     }

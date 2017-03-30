@@ -11,10 +11,11 @@ require('../Bootsrap.php');
 use lib\NsqClient;
 
 $NsqClient = new NsqClient();
-$client = $NsqClient->getSynClient('127.0.0.1', 4150, 'nsq_common',md5('nsns'));
+$client = $NsqClient->getSynClient('127.0.0.1', 4150, 'nsq_common', 'tGzv3JOkF0XG5Qx2TlKWIA');
 while (1) {
     var_dump($client->pub('message'));
-    //var_dump($client->mPub(array_fill(0,100,'message')));
+    var_dump($client->mPub(array_fill(0,1000,'message')));
     //usleep(2000);
     sleep(1);
 }
+

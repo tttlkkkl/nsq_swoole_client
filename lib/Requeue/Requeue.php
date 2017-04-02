@@ -9,7 +9,8 @@
 namespace lib\Requeue;
 
 use lib\exception\MessageException;
-
+use lib\message\MessageInterface;
+use lib\Requeue\RequeueInterface;
 class Requeue implements RequeueInterface
 {
     /**

@@ -7,6 +7,7 @@
  * author :李华 yehong0000@163.com
  */
 namespace lib\Requeue;
+use lib\message\MessageInterface;
 interface RequeueInterface
 {
     /**

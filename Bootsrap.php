@@ -5,10 +5,14 @@
  * Time: 下午8:29
  * author :李华 yehong0000@163.com
  */
-function __autoloader($className)
+function __nsqAutoLoader($className)
 {
     $dir = __DIR__ . DIRECTORY_SEPARATOR . str_replace('\\', '/', $className) . '.php';
-    require($dir);
+    if(is_file($dir)){
+        require($dir);
+    }else{
+        return false;
+    }
 }
 
-spl_autoload_register("__autoloader", true);
+spl_autoload_register("__nsqAutoLoader");

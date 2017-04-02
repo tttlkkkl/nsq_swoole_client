@@ -29,7 +29,7 @@ class NsqClient {
     }
 
     /**
-     * 订阅
+     * 订阅,这只是一个示例
      *
      * @param $lookupHosts
      * @param $topic

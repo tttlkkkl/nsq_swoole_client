@@ -88,15 +88,18 @@ class Lookup
             );
             curl_setopt_array($ch, $options);
             $resultString = curl_exec($ch);
+            echo $resultString;
             if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
                 $result = json_decode($resultString, TRUE);
-                $producers = isset($result['data'], $result['data']['producers']) ? $result['data']['producers'] : [];
+                if(isset($result['producers']['data'])){
+                    //0.3.8
+                    $producers=$result['data']['producers'];
+                }elseif(isset($result['producers'])){
+                    //1.0.0
+                    $producers=$result['producers'];
+                }
                 foreach ($producers as $prod) {
-                    if (isset($prod['address'])) {
-                        $address = $prod['address'];
-                    } else {
-                        $address = $prod['broadcast_address'];
-                    }
+                    $address = $prod['broadcast_address'];
                     $h = "{$address}:{$prod['tcp_port']}";
                     if (!in_array($h, $lookupHosts)) {
                         $lookupHosts[] = $h;

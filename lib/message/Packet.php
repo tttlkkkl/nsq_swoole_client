@@ -7,7 +7,8 @@
  * author :李华 yehong0000@163.com
  */
 namespace lib\message;
-class Packet {
+class Packet
+{
     /**
      * 通信协议
      */
@@ -18,7 +19,8 @@ class Packet {
      *
      * @return string
      */
-    public static function getMagic() {
+    public static function getMagic()
+    {
         return self::MAGIC;
     }
 
@@ -29,7 +31,8 @@ class Packet {
      *
      * @return string
      */
-    public static function identify(array $params) {
+    public static function identify(array $params)
+    {
         $message = json_encode($params);
         $cmd = self::packing('IDENTIFY');
         $size = pack('N', strlen($message));
@@ -45,7 +48,8 @@ class Packet {
      *
      * @return string
      */
-    public static function sub($topic, $channel) {
+    public static function sub($topic, $channel)
+    {
         return self::packing('SUB', $topic, $channel);
     }
 
@@ -57,7 +61,8 @@ class Packet {
      *
      * @return string
      */
-    public static function pub($topic, $message) {
+    public static function pub($topic, $message)
+    {
         $cmd = self::packing('PUB', $topic);
         $size = pack('N', strlen($message));
         return $cmd . $size . $message;
@@ -71,7 +76,8 @@ class Packet {
      *
      * @return string
      */
-    public static function mPub($topic, array $message) {
+    public static function mPub($topic, array $message)
+    {
         $cmd = self::packing('MPUB', $topic);
         $num = pack('N', count($message));
         $bodyLen = 0;
@@ -91,7 +97,8 @@ class Packet {
      *
      * @return string
      */
-    public static function rdy($count) {
+    public static function rdy($count)
+    {
         return self::packing('RDY', $count);
     }
 
@@ -102,7 +109,8 @@ class Packet {
      *
      * @return string
      */
-    public static function fin($messageId) {
+    public static function fin($messageId)
+    {
         return self::packing('FIN', $messageId);
     }
 
@@ -114,7 +122,8 @@ class Packet {
      *
      * @return string
      */
-    public static function req($messageId, $timeout) {
+    public static function req($messageId, $timeout)
+    {
         return self::packing('REQ', $messageId, $timeout);
     }
 
@@ -125,7 +134,8 @@ class Packet {
      *
      * @return string
      */
-    public static function touch($messageId) {
+    public static function touch($messageId)
+    {
         return self::packing('TOUCH', $messageId);
     }
 
@@ -134,7 +144,8 @@ class Packet {
      *
      * @return string
      */
-    public static function cls() {
+    public static function cls()
+    {
         return self::packing('CLS');
     }
 
@@ -143,7 +154,8 @@ class Packet {
      *
      * @return string
      */
-    public static function nop() {
+    public static function nop()
+    {
         return self::packing('NOP');
     }
 
@@ -154,7 +166,8 @@ class Packet {
      *
      * @return string
      */
-    public static function auth($secret) {
+    public static function auth($secret)
+    {
         $cmd = self::packing('AUTH');
         $size = pack('N', strlen($secret));
         return $cmd . $size . $secret;
@@ -165,9 +178,9 @@ class Packet {
      *
      * @return string
      */
-    public static function packing() {
+    public static function packing()
+    {
         $args = func_get_args();
-        $cmd = array_shift($args);
-        return sprintf("%s %s%s", $cmd, implode(' ', $args), "\n");
+        return implode(' ', $args) . "\n";
     }
 }

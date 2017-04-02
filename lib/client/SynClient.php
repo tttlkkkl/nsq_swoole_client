@@ -284,6 +284,7 @@ class SynClient implements SynClientInterface {
             return true;
         }
         if ($this->authRequired && $this->authSecret) {
+            var_dump(Packet::auth($this->authSecret));
             $result = $this->send(Packet::auth($this->authSecret));
             if (Unpack::isError($result)) {
                 $this->isAuth = true;

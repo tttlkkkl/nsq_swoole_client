@@ -41,7 +41,6 @@ class NsqClient {
     public function sub($lookupHosts, $topic, $channel = '', $authSecret = '') {
         $Lookup = new Lookup($lookupHosts);
         $nsqdList = $Lookup->lookupHosts($topic);
-        print_r($nsqdList);
         if (!$nsqdList || !isset($nsqdList['lookupHosts']) || !$nsqdList['lookupHosts'] || !is_array($nsqdList['lookupHosts'])) {
             throw new ClientException('未发现可用服务');
         }

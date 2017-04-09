@@ -6,11 +6,11 @@
  * Time: 下午6:26
  * author :李华 yehong0000@163.com
  */
-namespace lib\Requeue;
+namespace lib\requeue;
 
 use lib\exception\MessageException;
 use lib\message\MessageInterface;
-use lib\Requeue\RequeueInterface;
+use lib\requeue\RequeueInterface;
 class Requeue implements RequeueInterface
 {
     /**

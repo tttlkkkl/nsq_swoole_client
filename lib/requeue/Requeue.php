@@ -26,7 +26,7 @@ class Requeue implements RequeueInterface
     private $delay;
 
     /**
-     * Requeue constructor.
+     * requeue constructor.
      *
      * @param int $maxAttempts 一条消息最大排队次数
      * @param int $delay       排队超时时间

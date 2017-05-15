@@ -91,7 +91,7 @@ class Lookup
             echo $resultString;
             if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
                 $result = json_decode($resultString, TRUE);
-                if(isset($result['producers']['data'])){
+                if(isset($result['data']['producers'])){
                     //0.3.8
                     $producers=$result['data']['producers'];
                 }elseif(isset($result['producers'])){

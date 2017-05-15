@@ -243,6 +243,7 @@ class Client implements ClientInterface {
             }
             //收到正确的授权结果
             if (isset($identify['permission_count']) && $identify['permission_count'] > 0) {
+                $this->Log->info('收到授权结果信息:' . $frame['msg']);
                 $this->isAuth = true;
             }
         } else {
@@ -290,7 +291,8 @@ class Client implements ClientInterface {
      *
      * @param Client $client
      *
-     * @return mixed
+     * @return mixedsudo /usr/local/nsq/bin/nsqd -config=/usr/local/nsq/bin/nsqd.cfg --auth-http-address=127.0.0.1:9005
+
      */
     public function onClose(SwooleClient $client) {
         $this->Log->warn('连接断开...');

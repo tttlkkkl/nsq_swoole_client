@@ -1,9 +1,12 @@
 <?php
 
 $auth = [
+    // 每隔五秒查询一次授权服务器
     'ttl'            => 5,
-    'identity'       => 'authServer',//身份
-    'identity_url'   => 'http://w.auth.com/api/auth',//授权链接可以忽略
+    //身份，授权成功后返回给客户端
+    'identity'       => 'authServer',
+    //授权链接可以忽略,授权成功后返回给客户端
+    'identity_url'   => 'http://w.auth.com/api/auth',
     'authorizations' => [
         [
             'permissions' => ['subscribe', 'publish'],

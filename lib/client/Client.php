@@ -217,6 +217,7 @@ class Client implements ClientInterface {
         if (Unpack::isHeartbeat($frame)) {
             $client->send(Packet::nop());
             $this->Log->debug('心跳查询');
+            return 1;
         } elseif (Unpack::isOk($frame)) {
             $this->init['ok'] += 1;
             $this->Log->debug('成功响应:' . $frame['msg']);
@@ -224,13 +225,16 @@ class Client implements ClientInterface {
             if ($response === $this->init['response'] && 1 === $this->init['ok']) {
                 $this->Log->info('订阅成功，开始第一条消费');
                 $client->send(Packet::rdy(1));
+                return 1;
             }
         } elseif (Unpack::isError($frame)) {
             $this->Log->warn('错误响应' . $frame['msg']);
+            return 1;
         } elseif (Unpack::isMessage($frame)) {
-            $this->Log->debug('收到消费消息:' . $frame['msg']);
+            $this->Log->error('收到消费消息:' . $frame['msg']);
             $this->handleMessage($client, $frame);
             $client->send(Packet::rdy(1));
+            return 1;
         } elseif (Unpack::isResponse($frame)) {
             $identify = json_decode($frame['msg'], true);
             if (isset($identify['auth_required'])) {
@@ -246,6 +250,7 @@ class Client implements ClientInterface {
                 $this->Log->info('收到授权结果信息:' . $frame['msg']);
                 $this->isAuth = true;
             }
+            return 1;
         } else {
             $this->Log->warn('未知的响应');
         }
@@ -344,7 +349,6 @@ class Client implements ClientInterface {
         if ($this->Dedupe->add($this->topic, $this->channel, $message)) {
             $this->Log->debug('重复消息：' . json_encode($frame));
             $client->send(Packet::fin($message->getId()));
-            $client->send(Packet::rdy(1));
         } else {
             try {
                 $handle = $this->Handle->handle($message);
@@ -354,7 +358,6 @@ class Client implements ClientInterface {
             if ($handle) {
                 $this->Log->info('消息处理完毕:' . json_encode($frame));
                 $client->send(Packet::fin($message->getId()));
-                $client->send(Packet::rdy(1));
                 $this->Log->debug('准备接收消息');
             } else {
                 $this->Log->error('消息处理出错:' . json_encode($frame));

@@ -369,6 +369,7 @@ class Client implements ClientInterface {
                         $this->Log->debug('消息排队失败:' . json_encode($frame));
                     }
                 } else {
+                    $client->send(Packet::fin($message->getId()));
                     $this->Log->info('消息被丢弃:' . json_encode($frame));
                 }
             }

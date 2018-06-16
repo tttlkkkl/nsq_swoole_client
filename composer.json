@@ -1,0 +1,26 @@
+{
+    "name": "tttlkkkl/PHPNsqClient",
+    "description": "php nsq client",
+    "license": "MIT",
+    "keywords": [
+        "nsq",
+        "php nsq",
+        "nsq client"
+    ],
+    "authors": [
+        {
+            "name": "li hua",
+            "email": "tttlkkkl@aliyun.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "ext-swoole": "*"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "PHPNsqClient": "src/lib"
+        }
+    }
+}

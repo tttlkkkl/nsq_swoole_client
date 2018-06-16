@@ -7,21 +7,21 @@
  * Time: 下午9:54
  * author :李华 yehong0000@163.com
  */
-namespace lib\client;
+namespace NsqClient\lib\client;
 
-use lib\dedupe\Dedupe;
-use lib\dedupe\DedupeInterface;
-use lib\handle\Handle;
-use lib\handle\HandleInterface;
-use lib\log\Log;
-use lib\log\LogInterface;
-use lib\message\Message;
-use lib\requeue\Requeue;
-use lib\requeue\RequeueInterface;
+use NsqClient\lib\dedupe\Dedupe;
+use NsqClient\lib\dedupe\DedupeInterface;
+use NsqClient\lib\handle\Handle;
+use NsqClient\lib\handle\HandleInterface;
+use NsqClient\lib\log\Log;
+use NsqClient\lib\log\LogInterface;
+use NsqClient\lib\message\Message;
+use NsqClient\lib\requeue\Requeue;
+use NsqClient\lib\requeue\RequeueInterface;
 use Swoole\Client as SwooleClient;
-use lib\message\Packet;
-use lib\message\Unpack;
-use lib\exception\ClientException;
+use NsqClient\lib\message\Packet;
+use NsqClient\lib\message\Unpack;
+use NsqClient\lib\exception\ClientException;
 
 class Client implements ClientInterface {
     /**

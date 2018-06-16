@@ -6,8 +6,8 @@
  * Time: 下午6:44
  * author :李华 yehong0000@163.com
  */
-namespace lib\dedupe;
-use lib\message\MessageInterface;
+namespace NsqClient\lib\dedupe;
+use NsqClient\lib\message\MessageInterface;
 interface DedupeInterface
 {
     /**

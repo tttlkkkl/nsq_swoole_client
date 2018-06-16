@@ -8,12 +8,12 @@
  */
 namespace lib;
 
-use lib\client\ClientInterface;
-use lib\client\SynClient;
-use lib\exception\ClientException;
+use NsqClient\lib\client\ClientInterface;
+use NsqClient\lib\client\SynClient;
+use NsqClient\lib\exception\ClientException;
 use Swoole\Client as SwooleCilent;
-use lib\client\Client;
-use lib\lookup\Lookup;
+use NsqClient\lib\client\Client;
+use NsqClient\lib\lookup\Lookup;
 
 class NsqClient {
     /**

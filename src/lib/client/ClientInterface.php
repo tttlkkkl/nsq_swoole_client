@@ -6,7 +6,7 @@
  * author :李华 yehong0000@163.com
  */
 
-namespace lib\client;
+namespace NsqClient\lib\client;
 
 use \Swoole\Client as SwooleClient;
 

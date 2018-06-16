@@ -6,7 +6,7 @@
  * Time: 下午9:58
  * author :李华 yehong0000@163.com
  */
-namespace lib\log;
+namespace NsqClient\lib\log;
 interface LogInterface
 {
     /**

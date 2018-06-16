@@ -6,10 +6,10 @@
  * Time: 下午8:44
  * author :李华 yehong0000@163.com
  */
-namespace lib\handle;
+namespace NsqClient\lib\handle;
 
-use lib\log\Log;
-use lib\message\MessageInterface;
+use NsqClient\lib\log\Log;
+use NsqClient\lib\message\MessageInterface;
 
 
 class Handle implements HandleInterface

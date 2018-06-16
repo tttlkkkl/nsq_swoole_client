@@ -6,10 +6,10 @@
  * author :李华 yehong0000@163.com
  */
 
-namespace lib\handle;
+namespace NsqClient\lib\handle;
 
 
-use lib\message\MessageInterface;
+use NsqClient\lib\message\MessageInterface;
 
 interface HandleInterface
 {

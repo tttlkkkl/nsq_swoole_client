@@ -6,11 +6,11 @@
  * Time: 下午6:26
  * author :李华 yehong0000@163.com
  */
-namespace lib\requeue;
+namespace NsqClient\lib\requeue;
 
-use lib\exception\MessageException;
-use lib\message\MessageInterface;
-use lib\requeue\RequeueInterface;
+use NsqClient\lib\exception\MessageException;
+use NsqClient\lib\message\MessageInterface;
+use NsqClient\lib\requeue\RequeueInterface;
 class Requeue implements RequeueInterface
 {
     /**

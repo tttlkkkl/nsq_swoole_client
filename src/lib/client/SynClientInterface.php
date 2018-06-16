@@ -9,7 +9,7 @@
  * @copyright: ec
  */
 
-namespace lib\client;
+namespace NsqClient\lib\client;
 
 
 interface SynClientInterface {

@@ -6,10 +6,10 @@
  * Time: 下午10:56
  * author :李华 yehong0000@163.com
  */
-namespace lib\lookup;
+namespace NsqClient\lib\lookup;
 
-use lib\exception\LookupException;
-use lib\log\Log;
+use NsqClient\lib\exception\LookupException;
+use NsqClient\lib\log\Log;
 
 class Lookup
 {

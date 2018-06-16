@@ -7,9 +7,9 @@
  * Time: 下午8:40
  * author :李华 yehong0000@163.com
  */
-namespace lib\message;
+namespace NsqClient\lib\message;
 
-use lib\exception\MessageException;
+use NsqClient\lib\exception\MessageException;
 
 class Unpack
 {

@@ -9,13 +9,13 @@
  * @copyright: ec
  */
 
-namespace lib\client;
+namespace NsqClient\lib\client;
 
-use lib\exception\ClientException;
-use lib\log\Log;
-use lib\log\LogInterface;
-use lib\message\Unpack;
-use lib\message\Packet;
+use NsqClient\lib\exception\ClientException;
+use NsqClient\lib\log\Log;
+use NsqClient\lib\log\LogInterface;
+use NsqClient\lib\message\Unpack;
+use NsqClient\lib\message\Packet;
 use Swoole\Client as SwooleCilent;
 
 class SynClient implements SynClientInterface {

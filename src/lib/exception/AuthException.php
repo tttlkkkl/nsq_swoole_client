@@ -9,7 +9,7 @@
  * @copyright: ec
  */
 
-namespace lib\exception;
+namespace NsqClient\lib\exception;
 
 
 class AuthException extends \Exception {

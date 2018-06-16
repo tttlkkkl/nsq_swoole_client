@@ -6,8 +6,8 @@
  * Time: 下午6:25
  * author :李华 yehong0000@163.com
  */
-namespace lib\requeue;
-use lib\message\MessageInterface;
+namespace NsqClient\lib\requeue;
+use NsqClient\lib\message\MessageInterface;
 interface RequeueInterface
 {
     /**

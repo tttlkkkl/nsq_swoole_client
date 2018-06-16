@@ -7,7 +7,6 @@
  * @author: lihs
  * @copyright: ec
  */
-require('../Bootsrap.php');
 use lib\NsqClient;
 
 $NsqClient = new NsqClient();

@@ -15,9 +15,10 @@ interface HandleInterface
 {
     /**
      * 消息处理，消息业务处理
-     * @param MessageInterface $message
      *
+     * @param MessageInterface $message
+     * @param \Closure $finish
      * @return mixed
      */
-    public function handle(MessageInterface $message);
+    public function handle( MessageInterface $message, \Closure $finish = NULL );
 }

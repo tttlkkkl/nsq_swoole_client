@@ -31,12 +31,25 @@ class Message implements MessageInterface
      */
     private $timestamp;
 
-    public function __construct($frame)
+    /**
+     * @var SwooleClient
+     */
+    private $client;
+
+    /**
+     * 标记消息是否已被处理
+     *
+     * @var
+     */
+    private $isHandle;
+
+    public function __construct($frame, SwooleClient $client)
     {
         $this->msg = $frame['msg'];
         $this->id = $frame['id'];
         $this->attempts = $frame['attempts'];
         $this->timestamp = $frame['timestamp'];
+        $this->client = $client;
     }
 
     /**
@@ -73,5 +86,52 @@ class Message implements MessageInterface
     public function getTimestamp()
     {
         return $this->timestamp;
+    }
+
+    /**
+     * 消息完成
+     *
+     * @return bool
+     */
+    public function finish()
+    {
+        if ($this->client->send(Packet::fin($this->getId()))) {
+            $this->isHandle = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 重新排队
+     *
+     * @param int $delay 延时时间，单位秒
+     * @return bool
+     */
+    public function requeue($delay)
+    {
+        if ($this->client->send(Packet::req($this->getId(), $delay))) {
+            $this->isHandle = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 重设消息到期时间--避免消息被服务器重新排队
+     *
+     * @return mixed
+     */
+    public function touch()
+    {
+        return $this->client->send(Packet::touch($this->getId()));
+    }
+
+    /**
+     * @return bool
+     */
+    public function isHandle()
+    {
+        return $this->isHandle === true ? true : false;
     }
 }

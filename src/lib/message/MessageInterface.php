@@ -34,4 +34,33 @@ interface MessageInterface
      * @return mixed
      */
     public function getTimestamp();
+
+    /**
+     * 完成消息
+     *
+     * @return bool
+     */
+    public function finish();
+
+    /**
+     * 重新排队消息
+     *
+     * @param int $delay 延时时间 单位秒
+     * @return bool
+     */
+    public function requeue($delay);
+
+    /**
+     * 重设消息到期时间--避免消息被服务器重新排队
+     *
+     * @return bool
+     */
+    public function touch();
+
+    /**
+     * 当执行完成finish() 或 requeue()时 此方法应该返回true
+     *
+     * @return bool
+     */
+    public function isHandle();
 }

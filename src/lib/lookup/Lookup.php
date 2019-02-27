@@ -6,6 +6,7 @@
  * Time: 下午10:56
  * author :李华 yehong0000@163.com
  */
+
 namespace NsqClient\lib\lookup;
 
 use NsqClient\lib\exception\LookupException;
@@ -29,22 +30,17 @@ class Lookup
      * 等待响应时间
      * @var
      */
-    private $resultesponseTimeout;
+    private $responseTimeout;
 
-    /**
-     * 日志打印
-     * @var Log
-     */
-    private $Log;
 
     /**
      * Lookup constructor.
      *
      * @param array $hosts
      * @param int $connectionTimeout
-     * @param int $resultesponseTimeout
+     * @param int $resultResponseTimeout
      */
-    public function __construct($hosts = NULL, $connectionTimeout = 1, $resultesponseTimeout = 2)
+    public function __construct($hosts = NULL, $connectionTimeout = 1, $resultResponseTimeout = 2)
     {
         if ($hosts === NULL) {
             $this->hosts = ['localhost:4161'];
@@ -54,16 +50,15 @@ class Lookup
             $this->hosts = explode(',', $hosts);
         }
         $this->connectionTimeout = $connectionTimeout;
-        $this->responseTimeout = $resultesponseTimeout;
-        $this->Log = new Log();
+        $this->responseTimeout = $resultResponseTimeout;
     }
 
     /**
      * 服务发现
      *
      * @param $topic
-     *
      * @return array
+     * @throws LookupException
      */
     public function lookupHosts($topic)
     {
@@ -88,15 +83,14 @@ class Lookup
             );
             curl_setopt_array($ch, $options);
             $resultString = curl_exec($ch);
-            echo $resultString;
             if (!curl_error($ch) && curl_getinfo($ch, CURLINFO_HTTP_CODE) == '200') {
                 $result = json_decode($resultString, TRUE);
-                if(isset($result['data']['producers'])){
+                if (isset($result['data']['producers'])) {
                     //0.3.8
-                    $producers=$result['data']['producers'];
-                }elseif(isset($result['producers'])){
+                    $producers = $result['data']['producers'];
+                } elseif (isset($result['producers'])) {
                     //1.0.0
-                    $producers=$result['producers'];
+                    $producers = $result['producers'];
                 }
                 foreach ($producers as $prod) {
                     $address = $prod['broadcast_address'];
@@ -109,9 +103,8 @@ class Lookup
                 curl_close($ch);
             } else {
                 $err = curl_error($ch);
-                $this->Log->error($err . $resultString);
                 curl_close($ch);
-                throw new LookupException($err, -1);
+                throw new LookupException($err);
             }
         }
         return [

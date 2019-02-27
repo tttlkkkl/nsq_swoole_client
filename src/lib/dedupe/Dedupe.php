@@ -1,15 +1,18 @@
 <?php
 
 /**
+ * 消息去重
  *
  * Date: 17-3-26
  * Time: 下午6:45
  * author :李华 yehong0000@163.com
  */
+
 namespace NsqClient\lib\dedupe;
 
 use NsqClient\lib\message\MessageInterface;
 use NsqClient\lib\dedupe\DedupeInterface;
+
 class Dedupe implements DedupeInterface
 {
     /**

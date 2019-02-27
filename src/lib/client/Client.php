@@ -22,7 +22,6 @@ use NsqClient\lib\requeue\RequeueInterface;
 use Swoole\Client as SwooleClient;
 use NsqClient\lib\message\Packet;
 use NsqClient\lib\message\Unpack;
-use NsqClient\lib\exception\ClientException;
 
 class Client implements ClientInterface
 {
@@ -144,6 +143,7 @@ class Client implements ClientInterface
      * @param RequeueInterface|NULL $Requeue
      * @param string $hostName
      * @param string $clientId
+     * @throws \NsqClient\lib\exception\MessageException
      */
     public function __construct(
         $topic,
@@ -155,11 +155,11 @@ class Client implements ClientInterface
         DedupeInterface $Dedupe = NULL,
         RequeueInterface $Requeue = NULL,
         $hostName = '',
-        $clientId = '' )
+        $clientId = '')
     {
         $this->hostName = $hostName ?: gethostname();
-        $this->clientId = ( $clientId && is_string($clientId) ) ? $clientId :
-            ( strpos($this->hostName, '.') ? substr($this->hostName, strpos($this->hostName, '.')) : $this->hostName );
+        $this->clientId = ($clientId && is_string($clientId)) ? $clientId :
+            (strpos($this->hostName, '.') ? substr($this->hostName, strpos($this->hostName, '.')) : $this->hostName);
         $this->topic = $topic;
         $this->channel = $channel;
         $this->finishAuto = $finishAuto;
@@ -180,11 +180,10 @@ class Client implements ClientInterface
     /**
      * 连接成功回调
      *
-     * @param Client $client
-     *
-     * @return mixed
+     * @param SwooleClient $client
+     * @return mixed|void
      */
-    public function onConnect( SwooleClient $client )
+    public function onConnect(SwooleClient $client)
     {
         //重置定时器
         $this->resetTimer($client);
@@ -204,11 +203,10 @@ class Client implements ClientInterface
     /**
      * 连接失败回调
      *
-     * @param Client $client
-     *
-     * @return mixed
+     * @param SwooleClient $client
+     * @return mixed|void
      */
-    public function onError( SwooleClient $client )
+    public function onError(SwooleClient $client)
     {
         $this->Log->error('服务器连接失败');
     }
@@ -221,34 +219,34 @@ class Client implements ClientInterface
      * @return int|mixed
      * @throws \NsqClient\lib\exception\MessageException
      */
-    public function onReceive( SwooleClient $client, $data )
+    public function onReceive(SwooleClient $client, $data)
     {
         $frame = Unpack::getFrame($data);
         $this->init['response'] += 1;
-        if ( Unpack::isHeartbeat($frame) ) {
+        if (Unpack::isHeartbeat($frame)) {
             $client->send(Packet::nop());
             $this->Log->debug('心跳查询');
             return 1;
-        } elseif ( Unpack::isOk($frame) ) {
+        } elseif (Unpack::isOk($frame)) {
             $this->init['ok'] += 1;
             $this->Log->debug('成功响应:' . $frame['msg']);
             $response = $this->authRequired ? 3 : 2;
-            if ( $response === $this->init['response'] && 1 === $this->init['ok'] ) {
+            if ($response === $this->init['response'] && 1 === $this->init['ok']) {
                 $this->Log->info('订阅成功，开始第一条消费');
                 $client->send(Packet::rdy(1));
                 return 1;
             }
-        } elseif ( Unpack::isError($frame) ) {
+        } elseif (Unpack::isError($frame)) {
             $this->Log->warn('错误响应' . $frame['msg']);
             return 1;
-        } elseif ( Unpack::isMessage($frame) ) {
+        } elseif (Unpack::isMessage($frame)) {
             $this->Log->error('收到消费消息:' . $frame['msg']);
             $this->handleMessage($client, $frame);
             $client->send(Packet::rdy(1));
             return 1;
-        } elseif ( Unpack::isResponse($frame) ) {
+        } elseif (Unpack::isResponse($frame)) {
             $identify = json_decode($frame['msg'], true);
-            if ( isset($identify['auth_required']) ) {
+            if (isset($identify['auth_required'])) {
                 //服务协商数据，检查是否需要授权
                 $this->Log->info('收到服务协商数据:' . $frame['msg']);
                 $this->authRequired = $identify['auth_required'] ? true : false;
@@ -257,7 +255,7 @@ class Client implements ClientInterface
                 $this->sub($client);
             }
             //收到正确的授权结果
-            if ( isset($identify['permission_count']) && $identify['permission_count'] > 0 ) {
+            if (isset($identify['permission_count']) && $identify['permission_count'] > 0) {
                 $this->Log->info('收到授权结果信息:' . $frame['msg']);
                 $this->isAuth = true;
             }
@@ -272,11 +270,10 @@ class Client implements ClientInterface
      * 服务订阅
      *
      * @param SwooleClient $client
-     * @return bool
      */
-    private function sub( SwooleClient $client )
+    private function sub(SwooleClient $client)
     {
-        if ( $this->auth($client) ) {
+        if ($this->auth($client)) {
             //订阅话题频道
             $client->send(Packet::sub($this->topic, $this->channel));
             $this->Log->debug('订阅' . $this->topic . ':' . $this->channel);
@@ -291,14 +288,14 @@ class Client implements ClientInterface
      * @param SwooleClient $client
      * @return bool
      */
-    private function auth( SwooleClient $client )
+    private function auth(SwooleClient $client)
     {
-        if ( $this->isAuth ) {
+        if ($this->isAuth) {
             return true;
         }
-        if ( $this->authRequired && $this->authSecret ) {
+        if ($this->authRequired && $this->authSecret) {
             return $client->send(Packet::auth($this->authSecret));
-        } elseif ( $this->authRequired && !$this->authSecret ) {
+        } elseif ($this->authRequired && !$this->authSecret) {
             return false;
         } else {
             return true;
@@ -306,20 +303,19 @@ class Client implements ClientInterface
     }
 
     /**
-     * 关闭回调
+     * 关闭时的回调
      *
-     * @param Client $client
-     *
-     * @return mixedsudo /usr/local/nsq/bin/nsqd -config=/usr/local/nsq/bin/nsqd.cfg --auth-http-address=127.0.0.1:9005
+     * @param SwooleClient $client
+     * @return mixed|void
      */
-    public function onClose( SwooleClient $client )
+    public function onClose(SwooleClient $client)
     {
         $this->Log->warn('连接断开...');
         //设置参数，等待重启
         $this->init['ok'] = $this->init['response'] = 0;
         $this->resetTimer($client);
-        $this->timer || $this->timer = swoole_timer_tick(self::RECONNECT_INTERVAL * 1000, function () use ( $client ) {
-            if ( !$client->isConnected() ) {
+        $this->timer || $this->timer = swoole_timer_tick(self::RECONNECT_INTERVAL * 1000, function () use ($client) {
+            if (!$client->isConnected()) {
                 $this->reconnects += 1;
                 $this->Log->info('正在尝试重连...第' . $this->reconnects . '次...');
                 $client->connect($this->ip, $this->port);
@@ -332,10 +328,10 @@ class Client implements ClientInterface
      *
      * @param SwooleClient $client
      */
-    private function resetTimer( SwooleClient $client )
+    private function resetTimer(SwooleClient $client)
     {
         $this->reconnects = 0;
-        if ( $this->timer && $client->isConnected() ) {
+        if ($this->timer && $client->isConnected()) {
             swoole_timer_clear($this->timer);
             $this->timer = 0;
         }
@@ -347,7 +343,7 @@ class Client implements ClientInterface
      * @param $ip
      * @param $port
      */
-    public function setHost( $ip, $port )
+    public function setHost($ip, $port)
     {
         $this->ip = $ip;
         $this->port = $port;
@@ -359,27 +355,20 @@ class Client implements ClientInterface
      * @param SwooleClient $client
      * @param array $frame
      */
-    private function handleMessage( SwooleClient $client, array $frame )
+    private function handleMessage(SwooleClient $client, array $frame)
     {
-        $message = new Message($frame);
+        $message = new Message($frame, $client);
         //消息重复
-        if ( $this->Dedupe->add($this->topic, $this->channel, $message) ) {
+        if ($this->Dedupe->add($this->topic, $this->channel, $message)) {
             $this->Log->debug('重复消息：' . json_encode($frame));
             $client->send(Packet::fin($message->getId()));
         } else {
             try {
-                if ( $this->finishAuto == true ) {
-                    $callback = function ( $handle ) use ( $client, $message ) {
-                        $this->finish($handle, $client, $message);
-                    };
-                } else {
-                    $callback = NULL;
-                }
-                $handle = $this->Handle->handle($message, $callback);
-            } catch ( \Exception $E ) {
+                $handle = $this->Handle->handle($message);
+            } catch (\Exception $E) {
                 $handle = false;
             }
-            if ( $this->finishAuto == true ) {
+            if ($this->finishAuto == true) {
                 $this->finish($handle, $client, $message);
             }
         }
@@ -392,24 +381,28 @@ class Client implements ClientInterface
      * @param SwooleClient $client
      * @param Message $message
      */
-    private function finish( $handle, SwooleClient $client, Message $message )
+    private function finish($handle, SwooleClient $client, Message $message)
     {
-        if ( $handle ) {
-            $this->Log->info('消息处理完毕:' . json_encode($message));
+        if ($message->isHandle()) {
+            $this->Log->info('消息已重新排队或已处理完成，忽略处理程序异常的返回...' . $message->getMsg());
+            return;
+        }
+        if ($handle) {
+            $this->Log->info('消息处理完毕:' . $message->getMsg());
             $client->send(Packet::fin($message->getId()));
             $this->Log->debug('准备接收消息');
         } else {
-            $this->Log->error('消息处理出错:' . json_encode($message));
-            if ( ( $timeout = $this->Requeue->shouldRequeue($message) ) !== NULL ) {
-                if ( $client->send(Packet::req($message->getId(), $timeout)) ) {
+            $this->Log->error('消息处理出错:' . $message->getMsg());
+            if (($timeout = $this->Requeue->shouldRequeue($message)) !== NULL) {
+                if ($client->send(Packet::req($message->getId(), $timeout))) {
                     $this->Dedupe->clear($this->topic, $this->channel, $message);
-                    $this->Log->info('消息重新排队:' . json_encode($message));
+                    $this->Log->info('消息自动重新排队:' . $message->getMsg());
                 } else {
-                    $this->Log->debug('消息排队失败:' . json_encode($message));
+                    $this->Log->debug('消息自动排队失败:' . $message->getMsg());
                 }
             } else {
                 $client->send(Packet::fin($message->getId()));
-                $this->Log->info('消息被丢弃:' . json_encode($message));
+                $this->Log->info('消息被丢弃:' . $message->getMsg());
             }
         }
     }

@@ -10,7 +10,7 @@ namespace NsqClient\lib\requeue;
 
 use NsqClient\lib\exception\MessageException;
 use NsqClient\lib\message\MessageInterface;
-use NsqClient\lib\requeue\RequeueInterface;
+
 class Requeue implements RequeueInterface
 {
     /**
@@ -26,10 +26,10 @@ class Requeue implements RequeueInterface
     private $delay;
 
     /**
-     * requeue constructor.
-     *
+     * Requeue constructor.
      * @param int $maxAttempts 一条消息最大排队次数
-     * @param int $delay       排队超时时间
+     * @param int $delay 排队超时时间
+     * @throws MessageException
      */
     public function __construct($maxAttempts = 10, $delay = 50)
     {

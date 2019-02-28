@@ -7,7 +7,7 @@
  */
 
 namespace NsqClient\lib\message;
-
+use Swoole\Client;
 class Message implements MessageInterface
 {
     /**
@@ -43,7 +43,7 @@ class Message implements MessageInterface
      */
     private $isHandle;
 
-    public function __construct($frame, SwooleClient $client)
+    public function __construct($frame, Client $client)
     {
         $this->msg = $frame['msg'];
         $this->id = $frame['id'];

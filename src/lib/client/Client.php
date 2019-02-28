@@ -357,7 +357,7 @@ class Client implements ClientInterface
      */
     private function handleMessage(SwooleClient $client, array $frame)
     {
-        $message = new Message($frame, $client);
+        $message = new Message($frame, $this);
         //消息重复
         if ($this->Dedupe->add($this->topic, $this->channel, $message)) {
             $this->Log->debug('重复消息：' . json_encode($frame));
@@ -406,4 +406,37 @@ class Client implements ClientInterface
             }
         }
     }
+
+    /**
+     * @return string
+     */
+    public function getTopic()
+    {
+        return $this->topic;
+    }
+
+    /**
+     * @return string
+     */
+    public function getChannel()
+    {
+        return $this->channel;
+    }
+
+    /**
+     * @return Log|LogInterface
+     */
+    public function getLog()
+    {
+        return $this->Log;
+    }
+
+    /**
+     * @return Dedupe|DedupeInterface
+     */
+    public function getDedupe()
+    {
+        return $this->Dedupe;
+    }
+
 }

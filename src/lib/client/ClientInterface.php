@@ -8,6 +8,8 @@
 
 namespace NsqClient\lib\client;
 
+use NsqClient\lib\dedupe\DedupeInterface;
+use NsqClient\lib\log\LogInterface;
 use \Swoole\Client as SwooleClient;
 
 interface ClientInterface
@@ -57,4 +59,21 @@ interface ClientInterface
      * @return mixed
      */
     public function setHost($ip,$port);
+    /**
+     * @return string
+     */
+    public function getTopic();
+
+    /**
+     * @return string
+     */
+    public function getChannel();
+    /**
+     * @return LogInterface
+     */
+    public function getLog();
+    /**
+     * @return DedupeInterface
+     */
+    public function getDedupe();
 }

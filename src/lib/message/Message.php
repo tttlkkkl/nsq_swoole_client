@@ -7,7 +7,9 @@
  */
 
 namespace NsqClient\lib\message;
-use Swoole\Client;
+
+use NsqClient\lib\client\ClientInterface;
+
 class Message implements MessageInterface
 {
     /**
@@ -32,7 +34,7 @@ class Message implements MessageInterface
     private $timestamp;
 
     /**
-     * @var SwooleClient
+     * @var ClientInterface
      */
     private $client;
 
@@ -43,7 +45,7 @@ class Message implements MessageInterface
      */
     private $isHandle;
 
-    public function __construct($frame, Client $client)
+    public function __construct($frame, ClientInterface $client)
     {
         $this->msg = $frame['msg'];
         $this->id = $frame['id'];
@@ -110,6 +112,8 @@ class Message implements MessageInterface
      */
     public function requeue($delay)
     {
+        // 去除重复限制
+        $this->client->getDedupe()->clear($this->client->getTopic(), $this->client->getChannel(), $this);
         if ($this->client->send(Packet::req($this->getId(), $delay))) {
             $this->isHandle = true;
             return true;

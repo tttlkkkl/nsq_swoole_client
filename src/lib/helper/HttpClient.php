@@ -47,7 +47,7 @@ class HttpClient
      * @param string $topic
      * @return HttpClient
      */
-    public function getInstance($host = '', $topic = '')
+    public static function getInstance($host = '', $topic = '')
     {
         $key = $host . $topic;
         if (!isset(self::$obj[$key])) {

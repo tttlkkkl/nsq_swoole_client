@@ -58,7 +58,8 @@ interface ClientInterface
      * @param $port
      * @return mixed
      */
-    public function setHost($ip,$port);
+    public function setHost($ip, $port);
+
     /**
      * @return string
      */
@@ -68,12 +69,25 @@ interface ClientInterface
      * @return string
      */
     public function getChannel();
+
     /**
      * @return LogInterface
      */
     public function getLog();
+
     /**
      * @return DedupeInterface
      */
     public function getDedupe();
+
+    /**
+     * @return SwooleClient
+     */
+    public function getSwooleClient();
+
+    /**
+     * @param SwooleClient $client
+     * @return mixed
+     */
+    public function setSwooleClient(SwooleClient $client);
 }

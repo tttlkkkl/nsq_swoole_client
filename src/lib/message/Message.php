@@ -97,7 +97,7 @@ class Message implements MessageInterface
      */
     public function finish()
     {
-        if ($this->client->send(Packet::fin($this->getId()))) {
+        if ($this->client->getSwooleClient()->send(Packet::fin($this->getId()))) {
             $this->isHandle = true;
             return true;
         }
@@ -114,7 +114,7 @@ class Message implements MessageInterface
     {
         // 去除重复限制
         $this->client->getDedupe()->clear($this->client->getTopic(), $this->client->getChannel(), $this);
-        if ($this->client->send(Packet::req($this->getId(), $delay))) {
+        if ($this->client->getSwooleClient()->send(Packet::req($this->getId(), $delay))) {
             $this->isHandle = true;
             return true;
         }
@@ -128,7 +128,7 @@ class Message implements MessageInterface
      */
     public function touch()
     {
-        return $this->client->send(Packet::touch($this->getId()));
+        return $this->client->getSwooleClient()->send(Packet::touch($this->getId()));
     }
 
     /**

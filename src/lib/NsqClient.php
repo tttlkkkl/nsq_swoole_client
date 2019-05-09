@@ -38,10 +38,10 @@ class NsqClient
     public function init(ClientInterface $Client, $nsqdHost)
     {
         $SwooleClient = new SwooleCilent(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-        $SwooleClient->on("connect", [$Client, 'onConnect']);
-        $SwooleClient->on("receive", [$Client, 'onReceive']);
-        $SwooleClient->on("error", [$Client, 'onError']);
-        $SwooleClient->on("close", [$Client, 'onClose']);
+        $SwooleClient->on('connect', [$Client, 'onConnect']);
+        $SwooleClient->on('receive', [$Client, 'onReceive']);
+        $SwooleClient->on('error', [$Client, 'onError']);
+        $SwooleClient->on('close', [$Client, 'onClose']);
         $SwooleClient->set([
             'package_max_length'    => 1024 * 1024 * 2,
             'open_length_check'     => true,
@@ -60,6 +60,7 @@ class NsqClient
                 throw new ClientException('无法连接到:' . $host . ':' . $port);
             } else {
                 $Client->setHost($ip, $port);
+                $Client->setSwooleClient($SwooleClient);
             }
         });
     }

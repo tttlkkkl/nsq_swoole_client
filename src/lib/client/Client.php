@@ -131,6 +131,8 @@ class Client implements ClientInterface
 
     private $finishAuto;
 
+    private $swooleClient;
+
     /**
      * Client constructor.
      * @param $topic
@@ -439,4 +441,20 @@ class Client implements ClientInterface
         return $this->Dedupe;
     }
 
+    /**
+     * @return SwooleClient
+     */
+    public function getSwooleClient()
+    {
+        return $this->swooleClient;
+    }
+
+    /**
+     * @param SwooleClient $client
+     * @return mixed
+     */
+    public function setSwooleClient(SwooleClient $client)
+    {
+        $this->swooleClient = $client;
+    }
 }

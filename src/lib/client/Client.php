@@ -134,6 +134,13 @@ class Client implements ClientInterface
     private $swooleClient;
 
     /**
+     * 额外得服务协商数据
+     *
+     * @var
+     */
+    private $identify;
+
+    /**
      * Client constructor.
      * @param $topic
      * @param $channel
@@ -145,6 +152,7 @@ class Client implements ClientInterface
      * @param RequeueInterface|NULL $Requeue
      * @param string $hostName
      * @param string $clientId
+     * @param array $identify 自定义的服务协商数据
      * @throws \NsqClient\lib\exception\MessageException
      */
     public function __construct(
@@ -157,7 +165,9 @@ class Client implements ClientInterface
         DedupeInterface $Dedupe = NULL,
         RequeueInterface $Requeue = NULL,
         $hostName = '',
-        $clientId = '')
+        $clientId = '',
+        $identify = []
+    )
     {
         $this->hostName = $hostName ?: gethostname();
         $this->clientId = ($clientId && is_string($clientId)) ? $clientId :
@@ -177,6 +187,7 @@ class Client implements ClientInterface
             'ok'       => 0,
             'response' => 0
         ];
+        $this->identify = $identify;
     }
 
     /**
@@ -193,12 +204,13 @@ class Client implements ClientInterface
         $client->send(Packet::getMagic());
         $this->Log->debug('约定通信协议');
         //协商相关配置
-        $client->send(Packet::identify([
+        $identify = array_merge([
             'client_id'           => $this->clientId,
             'hostname'            => $this->hostName,
             'user_agent'          => $this->userAgent,
             'feature_negotiation' => true
-        ]));
+        ], $this->identify);
+        $client->send(Packet::identify($identify));
         $this->Log->debug('服务协商');
     }
 
@@ -242,7 +254,7 @@ class Client implements ClientInterface
             $this->Log->warn('错误响应' . $frame['msg']);
             return 1;
         } elseif (Unpack::isMessage($frame)) {
-            $this->Log->error('收到消费消息:' . $frame['msg']);
+            $this->Log->info('收到消费消息:' . $frame['msg']);
             $this->handleMessage($client, $frame);
             $client->send(Packet::rdy(1));
             return 1;

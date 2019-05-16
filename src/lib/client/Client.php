@@ -12,6 +12,7 @@ namespace NsqClient\lib\client;
 
 use NsqClient\lib\dedupe\Dedupe;
 use NsqClient\lib\dedupe\DedupeInterface;
+use NsqClient\lib\exception\ClientException;
 use NsqClient\lib\handle\Handle;
 use NsqClient\lib\handle\HandleInterface;
 use NsqClient\lib\log\Log;
@@ -22,6 +23,9 @@ use NsqClient\lib\requeue\RequeueInterface;
 use Swoole\Client as SwooleClient;
 use NsqClient\lib\message\Packet;
 use NsqClient\lib\message\Unpack;
+use Swoole\Coroutine\Channel;
+use Swoole\Process;
+use Closure;
 
 class Client implements ClientInterface
 {
@@ -65,19 +69,13 @@ class Client implements ClientInterface
     private $Log;
 
     /**
-     * 消息去重
-     * @var Dedupe|DedupeInterface
-     */
-    private $Dedupe;
-
-    /**
      * 重新排队判断
      * @var Requeue|RequeueInterface
      */
-    private $Requeue;
+    public $Requeue;
 
     /**
-     * @var Handle|HandleInterface
+     * @var Handle|HandleInterface|Closure
      */
     private $Handle;
     /**
@@ -129,9 +127,10 @@ class Client implements ClientInterface
      */
     private $isAuth;
 
-    private $finishAuto;
-
-    private $swooleClient;
+    /**
+     * @var bool
+     */
+    public $finishAuto;
 
     /**
      * 额外得服务协商数据
@@ -141,14 +140,18 @@ class Client implements ClientInterface
     private $identify;
 
     /**
+     * @var Closure;
+     */
+    private $task;
+
+    /**
      * Client constructor.
      * @param $topic
      * @param $channel
      * @param string $authSecret
-     * @param HandleInterface|NULL $Handle
+     * @param HandleInterface|Closure|null $Handle
      * @param bool $finishAuto 是否自动完成，true:当handel函数返回true时finish否则如果返回false或者异常将会重新排队
      * @param LogInterface|NULL $Log
-     * @param DedupeInterface|NULL $Dedupe
      * @param RequeueInterface|NULL $Requeue
      * @param string $hostName
      * @param string $clientId
@@ -159,26 +162,31 @@ class Client implements ClientInterface
         $topic,
         $channel,
         $authSecret = '',
-        HandleInterface $Handle = NULL,
+        $handle = NULL,
         $finishAuto = true,
         LogInterface $Log = NULL,
-        DedupeInterface $Dedupe = NULL,
         RequeueInterface $Requeue = NULL,
-        $hostName = '',
-        $clientId = '',
         $identify = []
     )
     {
-        $this->hostName = $hostName ?: gethostname();
-        $this->clientId = ($clientId && is_string($clientId)) ? $clientId :
-            (strpos($this->hostName, '.') ? substr($this->hostName, strpos($this->hostName, '.')) : $this->hostName);
+        $this->hostName = gethostname();
+        if (!is_string($this->hostName)) {
+            $this->hostName = '';
+        }
         $this->topic = $topic;
         $this->channel = $channel;
         $this->finishAuto = $finishAuto;
         $this->Log = isset($Log) ? $Log : new Log();
-        $this->Dedupe = isset($Dedupe) ? $Dedupe : new Dedupe();
         $this->Requeue = isset($Requeue) ? $Requeue : new Requeue();
-        $this->Handle = isset($Handle) ? $Handle : new Handle();
+        if (isset($handle)) {
+            if ($handle instanceof HandleInterface || $handle instanceof Closure) {
+                $this->Handle = $handle;
+            } else {
+                throw new ClientException('参数错误 handle 必须是 HandleInterface 对象或者一个闭包。');
+            }
+        } else {
+            $this->Handle = new Handle();
+        }
         $this->authSecret = $authSecret;
         //默认需要授权，服务协商成功后确认实际是否需要授权
         $this->authRequired = true;
@@ -255,8 +263,7 @@ class Client implements ClientInterface
             return 1;
         } elseif (Unpack::isMessage($frame)) {
             $this->Log->info('收到消费消息:' . $frame['msg']);
-            $this->handleMessage($client, $frame);
-            $client->send(Packet::rdy(1));
+            call_user_func($this->task, $client, serialize($frame));
             return 1;
         } elseif (Unpack::isResponse($frame)) {
             $identify = json_decode($frame['msg'], true);
@@ -363,63 +370,6 @@ class Client implements ClientInterface
         $this->port = $port;
     }
 
-    /**
-     * 消息处理
-     *
-     * @param SwooleClient $client
-     * @param array $frame
-     */
-    private function handleMessage(SwooleClient $client, array $frame)
-    {
-        $message = new Message($frame, $this);
-        //消息重复
-        if ($this->Dedupe->add($this->topic, $this->channel, $message)) {
-            $this->Log->debug('重复消息：' . json_encode($frame));
-            $client->send(Packet::fin($message->getId()));
-        } else {
-            try {
-                $handle = $this->Handle->handle($message);
-            } catch (\Exception $E) {
-                $handle = false;
-            }
-            if ($this->finishAuto == true) {
-                $this->finish($handle, $client, $message);
-            }
-        }
-    }
-
-    /**
-     * 消息消费完毕的逻辑
-     *
-     * @param $handle
-     * @param SwooleClient $client
-     * @param Message $message
-     */
-    private function finish($handle, SwooleClient $client, Message $message)
-    {
-        if ($message->isHandle()) {
-            $this->Log->info('消息已重新排队或已处理完成，忽略处理程序异常的返回...' . $message->getMsg());
-            return;
-        }
-        if ($handle) {
-            $this->Log->info('消息处理完毕:' . $message->getMsg());
-            $client->send(Packet::fin($message->getId()));
-            $this->Log->debug('准备接收消息');
-        } else {
-            $this->Log->error('消息处理出错:' . $message->getMsg());
-            if (($timeout = $this->Requeue->shouldRequeue($message)) !== NULL) {
-                if ($client->send(Packet::req($message->getId(), $timeout))) {
-                    $this->Dedupe->clear($this->topic, $this->channel, $message);
-                    $this->Log->info('消息自动重新排队:' . $message->getMsg());
-                } else {
-                    $this->Log->debug('消息自动排队失败:' . $message->getMsg());
-                }
-            } else {
-                $client->send(Packet::fin($message->getId()));
-                $this->Log->info('消息被丢弃:' . $message->getMsg());
-            }
-        }
-    }
 
     /**
      * @return string
@@ -446,27 +396,19 @@ class Client implements ClientInterface
     }
 
     /**
-     * @return Dedupe|DedupeInterface
+     * @return Handle|HandleInterface|NULL
      */
-    public function getDedupe()
+    public function getHandle()
     {
-        return $this->Dedupe;
+        return $this->Handle;
     }
 
     /**
-     * @return SwooleClient
+     * @param Closure $task
      */
-    public function getSwooleClient()
+    public function setTask(Closure $onTask)
     {
-        return $this->swooleClient;
+        $this->task = $onTask;
     }
 
-    /**
-     * @param SwooleClient $client
-     * @return mixed
-     */
-    public function setSwooleClient(SwooleClient $client)
-    {
-        $this->swooleClient = $client;
-    }
 }

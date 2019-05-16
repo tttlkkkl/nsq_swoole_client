@@ -9,8 +9,10 @@
 namespace NsqClient\lib\client;
 
 use NsqClient\lib\dedupe\DedupeInterface;
+use NsqClient\lib\handle\HandleInterface;
 use NsqClient\lib\log\LogInterface;
 use \Swoole\Client as SwooleClient;
+use Closure;
 
 interface ClientInterface
 {
@@ -76,18 +78,15 @@ interface ClientInterface
     public function getLog();
 
     /**
-     * @return DedupeInterface
+     * @return HandleInterface|Closure
      */
-    public function getDedupe();
+    public function getHandle();
 
     /**
-     * @return SwooleClient
-     */
-    public function getSwooleClient();
-
-    /**
-     * @param SwooleClient $client
+     * 设置文本消息回调函数
+     *
+     * @param Closure $onTask
      * @return mixed
      */
-    public function setSwooleClient(SwooleClient $client);
+    public function setTask(Closure $onTask);
 }

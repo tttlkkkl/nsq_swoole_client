@@ -8,7 +8,8 @@
 
 namespace NsqClient\lib\message;
 
-use NsqClient\lib\client\ClientInterface;
+use NsqClient\lib\dedupe\DedupeInterface;
+use Swoole\Process;
 
 class Message implements MessageInterface
 {
@@ -34,9 +35,9 @@ class Message implements MessageInterface
     private $timestamp;
 
     /**
-     * @var ClientInterface
+     * @var Process
      */
-    private $client;
+    private $process;
 
     /**
      * 标记消息是否已被处理
@@ -45,13 +46,14 @@ class Message implements MessageInterface
      */
     private $isHandle;
 
-    public function __construct($frame, ClientInterface $client)
+
+    public function __construct($frame, Process $process)
     {
-        $this->msg = $frame['msg'];
-        $this->id = $frame['id'];
-        $this->attempts = $frame['attempts'];
-        $this->timestamp = $frame['timestamp'];
-        $this->client = $client;
+        $this->msg = isset($frame['msg']) ? $frame['msg'] : '';
+        $this->id = isset($frame['id']) ? $frame['id'] : '';
+        $this->attempts = isset($frame['attempts']) ? $frame['attempts'] : 0;
+        $this->timestamp = isset($frame['timestamp']) ? $frame['timestamp'] : 0;
+        $this->process = $process;
     }
 
     /**
@@ -97,7 +99,7 @@ class Message implements MessageInterface
      */
     public function finish()
     {
-        if ($this->client->getSwooleClient()->send(Packet::fin($this->getId()))) {
+        if ($this->process->write(Packet::fin($this->getId()))) {
             $this->isHandle = true;
             return true;
         }
@@ -113,8 +115,7 @@ class Message implements MessageInterface
     public function requeue($delay)
     {
         // 去除重复限制
-        $this->client->getDedupe()->clear($this->client->getTopic(), $this->client->getChannel(), $this);
-        if ($this->client->getSwooleClient()->send(Packet::req($this->getId(), $delay))) {
+        if ($this->process->write(Packet::req($this->getId(), $delay))) {
             $this->isHandle = true;
             return true;
         }
@@ -128,7 +129,7 @@ class Message implements MessageInterface
      */
     public function touch()
     {
-        return $this->client->getSwooleClient()->send(Packet::touch($this->getId()));
+        return $this->process->write(Packet::touch($this->getId()));
     }
 
     /**

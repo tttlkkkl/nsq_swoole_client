@@ -6,6 +6,7 @@
  * Time: 下午8:31
  * author :李华 yehong0000@163.com
  */
+require '/app/vendor/autoload.php';
 
 use NsqClient\lib\NsqClient;
 use NsqClient\lib\client\Client;
@@ -20,25 +21,56 @@ use NsqClient\lib\exception\ClientException;
  * @throws ClientException
  * @throws \NsqClient\lib\exception\LookupException
  */
-function sub( $lookupHosts, $topic, $channel = '', $authSecret = '' )
+function pub()
 {
-    $Lookup = new Lookup($lookupHosts);
-    $nsqdList = $Lookup->lookupHosts($topic);
-    if ( !$nsqdList || !isset($nsqdList['lookupHosts']) || !$nsqdList['lookupHosts'] || !is_array($nsqdList['lookupHosts']) ) {
-        throw new ClientException('未发现可用服务');
-    }
-    $NsqClient = new NsqClient();
-    foreach ( $nsqdList['lookupHosts'] as $host ) {
-        if ( !$channel ) {
-            $channel = isset($nsqdList['topicChannel'][ $host ][0]) ? $nsqdList['topicChannel'][ $host ][0] : 'nsq_swoole_client';
-        }
-        $Client = new Client($topic, $channel, $authSecret);
-        $NsqClient->init($Client, $host);
+    $client = \NsqClient\lib\helper\HttpClient::getInstance('47.106.161.166:4151', 'dn.app.nsq.team');
+
+    $d = [
+        'action' => 1,
+        'data'   => [
+            'iTeamId' => 21,
+            'userIds' => [87],
+            'opType'  => 'addFriend'
+        ]
+    ];
+    while (1) {
+        $d['key'] = uniqid();
+        $r = $client->pub($d);
+        var_dump($r);
+        sleep(1);
     }
 }
 
-try {
-    sub([ '127.0.0.1:4161' ], 'nsq_common', 'web_member', 'auth');
-} catch ( Exception $e ) {
-    exit($e->getMessage());
+pub();
+
+######################
+
+function sub()
+{
+    $host = '47.106.161.166:4150';
+    $topic = $channel = 'test';
+    // 重复排队10次，每次50秒延时下发
+    $reQueue = new \NsqClient\lib\requeue\Requeue(10, 50);
+    $client = new Client(
+        $topic,
+        $channel,
+        '',
+        function (\NsqClient\lib\message\Message &$message) {
+            echo "收到消息:{$message->getId()}\n";
+            $message->finish();
+        },
+        true,
+        null,
+        $reQueue,
+        [
+            'heartbeat_interval' => 1000//1秒的心跳间隔
+        ]
+    );
+    // 最小任务进程数
+    $min_woker_num = 2;
+    // 最大任务进程数
+    $max_woker_num = 10;
+    // 空闲30秒后退出任务进程
+    $idle_seconds = 30;
+    (new NsqClient())->init($client, $host, $min_woker_num, $max_woker_num, $idle_seconds);
 }

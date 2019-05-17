@@ -10,7 +10,6 @@
 namespace NsqClient\lib\lookup;
 
 use NsqClient\lib\exception\LookupException;
-use NsqClient\lib\log\Log;
 
 class Lookup
 {

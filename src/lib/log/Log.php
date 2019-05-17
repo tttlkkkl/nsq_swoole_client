@@ -7,7 +7,6 @@
  * author :李华 yehong0000@163.com
  */
 namespace NsqClient\lib\log;
-use NsqClient\lib\log\LogInterface;
 class Log implements LogInterface
 {
     /**

@@ -16,12 +16,6 @@ use Swoole\Process;
 
 class NsqClient
 {
-    /**
-     * 已实例化的客户端，ip:port 作为键值
-     * @var
-     */
-    private $synClients;
-
     public function __construct()
     {
         if (!extension_loaded('swoole')) {

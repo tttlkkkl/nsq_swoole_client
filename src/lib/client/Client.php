@@ -17,7 +17,6 @@ use NsqClient\lib\handle\Handle;
 use NsqClient\lib\handle\HandleInterface;
 use NsqClient\lib\log\Log;
 use NsqClient\lib\log\LogInterface;
-use NsqClient\lib\message\Message;
 use NsqClient\lib\requeue\Requeue;
 use NsqClient\lib\requeue\RequeueInterface;
 use Swoole\Client as SwooleClient;

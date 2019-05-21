@@ -144,6 +144,11 @@ class Client implements ClientInterface
     private $task;
 
     /**
+     * @var int 可读取消息数与能开启的最大进程数等同
+     */
+    private $rdy = 1;
+
+    /**
      * Client constructor.
      * @param $topic
      * @param $channel
@@ -254,7 +259,7 @@ class Client implements ClientInterface
             $response = $this->authRequired ? 3 : 2;
             if ($response === $this->init['response'] && 1 === $this->init['ok']) {
                 $this->Log->info('订阅成功，开始第一条消费');
-                $client->send(Packet::rdy(1));
+                $client->send(Packet::rdy($this->rdy));
                 return 1;
             }
         } elseif (Unpack::isError($frame)) {
@@ -410,4 +415,8 @@ class Client implements ClientInterface
         $this->task = $onTask;
     }
 
+    public function setRdy($count)
+    {
+        $this->rdy = $count;
+    }
 }

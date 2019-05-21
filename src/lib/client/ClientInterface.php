@@ -89,4 +89,10 @@ interface ClientInterface
      * @return mixed
      */
     public function setTask(Closure $onTask);
+
+    /**
+     * @param $count
+     * @return mixed
+     */
+    public function setRdy($count);
 }

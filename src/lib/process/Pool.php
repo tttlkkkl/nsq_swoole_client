@@ -68,10 +68,6 @@ class Pool
      */
     private $mPid;
 
-    /**
-     * @var int 空闲的进程数量
-     */
-    private $freeNum;
 
     /**
      * Pool constructor.
@@ -98,6 +94,7 @@ class Pool
         $this->max_woker_num = $max_woker_num;
         $this->idle_seconds = $idle_seconds;
         $this->mPid = posix_getpid();
+        $this->client->setRdy($max_woker_num);
     }
 
     public function init()
@@ -127,32 +124,28 @@ class Pool
             for ($i = 0; $i < $this->min_woker_num; $i++) {
                 $this->createTaskWorker();
             }
-            $co = $tcpClient->connect('47.106.161.166', 4150);
+            $co = $tcpClient->connect($host, $port);
             if (!$co) {
                 throw new ClientException('无法连接到:' . $host . ':' . $port);
             } else {
-                $this->client->setHost('47.106.161.166', 4150);
+                $this->client->setHost($this->nsqdHost, 4150);
                 $task = function ($worker, SClient $client) {
+                    $pid = $worker->pid;
                     if (!swoole_event_isset($worker->pipe, SWOOLE_EVENT_READ)) {
-                        $pid = $worker->pid;
                         // 监听子进程回传的消息
                         swoole_event_add($worker->pipe, function ($pipe) use ($worker, $client, $pid) {
                             $childData = $worker->read();
                             if ($childData == '@fin') {//表示任务完成
                                 $this->useds[$pid] = false;
-                                $this->freeNum++;
-                                // 尝试收取消息
-                                $client->send(Packet::rdy(1));
                             } else {// 否则表示回传nsq的信息
                                 $client->send($childData);
                             }
                         });
-                        $this->useds[$pid] = true;
-                        $this->times[$pid] = time();
-                        $this->freeNum--;
-                        // 消息已投递无需创建新进程
-                        $this->client->getLog()->debug('投递任务到 task 成功 #' . $pid);
                     }
+                    $this->useds[$pid] = true;
+                    $this->times[$pid] = time();
+                    // 消息已投递无需创建新进程
+                    $this->client->getLog()->debug('投递任务到 task 成功 #' . $pid);
                 };
                 // 设置消息处理
                 $this->client->setTask(function (SClient $client, $frame) use ($masterWorker, $task) {
@@ -187,11 +180,7 @@ class Pool
                             // 已经开到最大进程数，消息重新排队10秒
                             $client->send(Packet::req((new Message(unserialize($frame), $masterWorker))->getId(), 10));
                         }
-                    }
-                    // 如果进程数量没有超最大值则从服务器拉取消息-递增读取
-                    if (($d = $this->max_woker_num - count($this->workers)) > 0) {
-                        $this->client->getLog()->debug('还可以创建' . $d . '个task进程从 nsq 读取1条消息');
-                        $client->send(Packet::rdy($d));
+                        return;
                     }
                     $this->checkExit($masterWorker);
                 });

@@ -201,6 +201,7 @@ class Pool
         }, false, SOCK_DGRAM);
         $mpid = $pool->start();
         $this->client->getLog()->info('start master worker #' . $mpid);
+        return $mpid;
     }
 
     /**

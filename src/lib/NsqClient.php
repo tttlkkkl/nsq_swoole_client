@@ -18,6 +18,13 @@ use NsqClient\lib\lookup\Lookup;
 
 class NsqClient
 {
+    /**
+     * 进程池主进程
+     *
+     * @var
+     */
+    private $pools;
+
     public function __construct()
     {
         if (!extension_loaded('swoole')) {
@@ -45,10 +52,18 @@ class NsqClient
         }
         foreach ($hosts as $host) {
             $host = is_string($host) ? $host : '';
-            (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+            $mPid = (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+            $this->pools[$mPid] = $host;
         }
         while ($ret = Process::wait()) {
             $pid = $ret['pid'];
+            // 重启进程池
+            if (isset($this->pools[$pid])) {
+                $host = $this->pools[$pid];
+                $mPid = (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+                $this->pools[$mPid] = $host;
+                unset($this->pools[$pid]);
+            }
             echo "process {$pid} existed\n";
         }
     }

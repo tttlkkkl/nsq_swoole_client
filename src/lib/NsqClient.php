@@ -14,6 +14,7 @@ use NsqClient\lib\client\SynClient;
 use NsqClient\lib\exception\ClientException;
 use NsqClient\lib\process\Pool;
 use Swoole\Process;
+use NsqClient\lib\lookup\Lookup;
 
 class NsqClient
 {

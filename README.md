@@ -2,7 +2,7 @@
 基于swoole实现的NSQ客户端。支持sub、pub、mPub、auth。
 lumen 下的使用实例（laravel同理）：[github](https://github.com/tttlkkkl/swoole-nsq)。
 ```
-composer require "tttlkkkl/php_nsq_client:~2.0.1" -vvv
+composer require "tttlkkkl/php_nsq_client:~2.1.0" -vvv
 ```
 
 - 消息去重、重新排队的机机制、日志等都可以通过实现已定义的接口去中心实现。一般情况下只需要实现消息处理方法即可。
@@ -16,7 +16,7 @@ composer require "tttlkkkl/php_nsq_client:~2.0.1" -vvv
 
 ### 示例：
 ```php
-    $host = '127.0.0.1:4150';
+    $lookupHost = '127.0.0.1:4160';
     $topic = $channel = 'test';
     // 重复排队10次，每次50秒延时下发
     $reQueue = new \NsqClient\lib\requeue\Requeue(10, 50);
@@ -41,6 +41,5 @@ composer require "tttlkkkl/php_nsq_client:~2.0.1" -vvv
     $max_woker_num = 10;
     // 空闲30秒后退出任务进程
     $idle_seconds = 30;
-    (new NsqClient())->init($client, $host, $min_woker_num, $max_woker_num, $idle_seconds);
-}
+    (new NsqClient())->init($client, $lookupHost, $min_woker_num, $max_woker_num, $idle_seconds);
 ```

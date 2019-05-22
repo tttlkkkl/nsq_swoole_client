@@ -47,7 +47,7 @@ pub();
 
 function sub()
 {
-    $host = '47.106.161.166:4150';
+    $lookupHost = '127.0.0.1:4160';
     $topic = $channel = 'test';
     // 重复排队10次，每次50秒延时下发
     $reQueue = new \NsqClient\lib\requeue\Requeue(10, 50);
@@ -72,5 +72,5 @@ function sub()
     $max_woker_num = 10;
     // 空闲30秒后退出任务进程
     $idle_seconds = 30;
-    (new NsqClient())->init($client, $host, $min_woker_num, $max_woker_num, $idle_seconds);
+    (new NsqClient())->init($client, $lookupHost, $min_woker_num, $max_woker_num, $idle_seconds);
 }

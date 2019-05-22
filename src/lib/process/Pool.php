@@ -201,10 +201,6 @@ class Pool
         }, false, SOCK_DGRAM);
         $mpid = $pool->start();
         $this->client->getLog()->info('start master worker #' . $mpid);
-        while ($ret = Process::wait()) {
-            $pid = $ret['pid'];
-            echo "process {$pid} existed\n";
-        }
     }
 
     /**

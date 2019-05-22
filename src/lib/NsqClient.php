@@ -11,6 +11,7 @@ namespace NsqClient\lib;
 
 use NsqClient\lib\client\ClientInterface;
 use NsqClient\lib\client\SynClient;
+use NsqClient\lib\exception\ClientException;
 use NsqClient\lib\process\Pool;
 use Swoole\Process;
 
@@ -24,16 +25,47 @@ class NsqClient
     }
 
     /**
-     * 启动客户端
+     * 以lookup为所有拥有指定topic的nsqd启动一个连接，和对应的处理进程池。启动的进程池数目和nsqd数目相等。
      *
-     * @param ClientInterface $Client
-     * @param $nsqdHost
-     * @param int $min_woker_num 最小task进程数量
-     * @param int $max_woker_num 最大进程数量
-     * @param int $idle_seconds 空闲多少秒后杀死进程
+     * @param ClientInterface $client
+     * @param $lookUpAddress lookup 地址
+     * @param int $min_wokers_num 进程池最小任务进程数
+     * @param int $max_wokers_num 进程池最大进程数
+     * @param int $idle_seconds 空闲超过这个时间后进程会被杀死
+     * @throws ClientException
      */
-    public function init(ClientInterface $Client, $nsqdHost, $min_woker_num = 2, $max_woker_num = 10, $idle_seconds = 30)
+    public function init(ClientInterface $client, $lookUpAddress, $min_wokers_num = 2, $max_wokers_num = 5, $idle_seconds = 30)
     {
-        (new Pool($Client, $nsqdHost, $min_woker_num, $max_woker_num, $idle_seconds))->init();
+        $lookUp = new Lookup($lookUpAddress);
+        $hosts = $lookUp->lookupHosts($client->getTopic());
+        $hosts = isset($hosts['lookupHosts']) ? $hosts['lookupHosts'] : [];
+        if (empty($hosts)) {
+            throw new ClientException('topic 尚未创建');
+        }
+        foreach ($hosts as $host) {
+            $host = is_string($host) ? $host : '';
+            (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+        }
+        while ($ret = Process::wait()) {
+            $pid = $ret['pid'];
+            echo "process {$pid} existed\n";
+        }
+    }
+
+    /**
+     * @param ClientInterface $client
+     * @param $address
+     * @param int $min_wokers_num
+     * @param int $max_wokers_num
+     * @param int $idle_seconds
+     * @throws ClientException
+     */
+    public function initNsqd(ClientInterface $client, $address, $min_wokers_num = 2, $max_wokers_num = 5, $idle_seconds = 30)
+    {
+        (new Pool($client, $address, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+        while ($ret = Process::wait()) {
+            $pid = $ret['pid'];
+            echo "process {$pid} existed\n";
+        }
     }
 }

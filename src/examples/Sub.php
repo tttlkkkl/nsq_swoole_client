@@ -68,6 +68,5 @@ function sub()
     );
     // 开启的工作进程数
     $workNum = 2;
-    $idle_seconds = 30;
     (new NsqClient())->init($client, $lookupHost, $workNum);
 }

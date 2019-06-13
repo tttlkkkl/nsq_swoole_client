@@ -33,11 +33,7 @@ composer require "tttlkkkl/php_nsq_client:~2.2.1" -vvv
             'heartbeat_interval' => 1000//1秒的心跳间隔
         ]
     );
-    // 最小任务进程数
-    $min_woker_num = 2;
-    // 最大任务进程数
-    $max_woker_num = 10;
-    // 空闲30秒后退出任务进程
-    $idle_seconds = 30;
+    // 开启的工作进程数
+    $workNum = 2;
     (new NsqClient())->init($client, $lookupHost, $workNum);
 ```

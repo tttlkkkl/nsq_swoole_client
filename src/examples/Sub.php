@@ -66,11 +66,8 @@ function sub()
             'heartbeat_interval' => 1000//1秒的心跳间隔
         ]
     );
-    // 最小任务进程数
-    $min_woker_num = 2;
-    // 最大任务进程数
-    $max_woker_num = 10;
-    // 空闲30秒后退出任务进程
+    // 开启的工作进程数
+    $workNum = 2;
     $idle_seconds = 30;
-    (new NsqClient())->init($client, $lookupHost, $min_woker_num, $max_woker_num, $idle_seconds);
+    (new NsqClient())->init($client, $lookupHost, $workNum);
 }

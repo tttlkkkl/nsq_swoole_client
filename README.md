@@ -10,8 +10,6 @@ composer require "tttlkkkl/php_nsq_client:~2.2.1" -vvv
 - 如果已对`message`对象调用了`finish()`或者 `requeue()`方法并且失败时,走 `$finishAuto` 为 `true` 时的逻辑。
 - `$finishAuto` 为 `false` 时,必须手动调用`finish()`或者 `requeue()`。
 - `helper` 目录中封装了常用的`http` `pub`和`mpub`。
-- 基于swoole Process 实现进程池。进程数量动态变更。
-- 设置最小进程数量等于最大进程数量时进程数量固定，这是建议的做法。
 
 
 ### 示例：
@@ -41,5 +39,5 @@ composer require "tttlkkkl/php_nsq_client:~2.2.1" -vvv
     $max_woker_num = 10;
     // 空闲30秒后退出任务进程
     $idle_seconds = 30;
-    (new NsqClient())->init($client, $lookupHost, $min_woker_num, $max_woker_num, $idle_seconds);
+    (new NsqClient())->init($client, $lookupHost, $workNum);
 ```

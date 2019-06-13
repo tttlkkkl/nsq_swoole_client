@@ -37,20 +37,9 @@ class Pool
      */
     private $times = [];
     /**
-     * @var int 最小进程数也是初始进程数量
+     * @var int 启动的工作进程数量
      */
-    private $min_woker_num = 2;
-
-    /**
-     * @var int 最大进程数
-     */
-    private $max_woker_num = 20;
-
-    /**
-     * 进程闲置销毁秒数
-     * @var int
-     */
-    private $idle_seconds = 5;
+    private $workNum = 2;
 
 
     /**
@@ -77,24 +66,16 @@ class Pool
      * @param int $max_woker_num
      * @param int $idle_seconds
      */
-    public function __construct(ClientInterface $Client, $nsqdHost, $min_woker_num = 2, $max_woker_num = 20, $idle_seconds = 30)
+    public function __construct(ClientInterface $Client, $nsqdHost, $workNum)
     {
         $this->client = $Client;
         $this->nsqdHost = $nsqdHost;
-        if ($min_woker_num < 1) {
-            throw new ClientException('最小task进程数不能小少于1个');
+        if ($workNum < 1) {
+            throw new ClientException('工作进程数不能小少于1个');
         }
-        if ($max_woker_num < $min_woker_num) {
-            throw new ClientException('最大task进程数不能小少于最小进程数');
-        }
-        if ($idle_seconds < 1) {
-            throw new ClientException('task进程空闲时间不能小于1秒');
-        }
-        $this->min_woker_num = $min_woker_num;
-        $this->max_woker_num = $max_woker_num;
-        $this->idle_seconds = $idle_seconds;
+        $this->workNum = $workNum;
         $this->mPid = posix_getpid();
-        $this->client->setRdy($max_woker_num);
+        $this->client->setRdy($workNum);
     }
 
     public function init()
@@ -121,7 +102,7 @@ class Pool
                 $port = substr($this->nsqdHost, $i + 1);
             }
             // 创建最少的 task 进程
-            for ($i = 0; $i < $this->min_woker_num; $i++) {
+            for ($i = 0; $i < $this->workNum; $i++) {
                 $this->createTaskWorker();
             }
             $co = $tcpClient->connect($host, $port);
@@ -150,7 +131,6 @@ class Pool
                 // 设置消息处理
                 $this->client->setTask(function (SClient $client, $frame) use ($masterWorker, $task) {
                     $this->client->getLog()->debug('准备投递任务' . $frame);
-                    $isNeedCreate = true;
                     foreach ($this->workers as $pid => $worker) {
                         // 空闲状态则投递任务
                         if ($this->isUsed($pid) === false) {
@@ -158,43 +138,11 @@ class Pool
                             // 创建子进程消息管道监听
                             if ($rs) {
                                 $task($worker, $client);
-                                $isNeedCreate = false;
                                 break;
                             }
                         }
                     }
-                    if ($isNeedCreate) {
-                        if (count($this->workers) < $this->max_woker_num) {
-                            $pid = $this->createTaskWorker();
-                            $newWorker = $this->workers[$pid];
-                            $rs = $newWorker->write($frame);
-                            // 创建子进程消息管道监听
-                            if ($rs) {
-                                $task($newWorker, $client);
-                                $this->workers[$pid] = $newWorker;
-                            }
-                            $this->client->getLog()->info('创建新的处理进程#' . $pid);
-                        } else {
-                            // 暂停接收消息
-                            $this->client->getLog()->debug('已达到最大进程数' . count($this->workers) . '暂停接收消息');
-                            // 已经开到最大进程数，消息重新排队10秒
-                            $client->send(Packet::req((new Message(unserialize($frame), $masterWorker))->getId(), 10));
-                        }
-                        return;
-                    }
                     $this->checkExit($masterWorker);
-                });
-                // 定时清除闲置的进程
-                swoole_timer_tick(1000, function ($timeId) {
-                    foreach ($this->workers as $pid => $worker) {
-                        if ($this->isUsed($pid) == false && (time() - $this->getLastActive($pid)) > $this->idle_seconds && count($this->workers) > $this->min_woker_num) {
-                            $worker->write('@exit');
-                            unset($this->workers[$pid]);
-                            unset($this->useds[$pid]);
-                            unset($this->times[$pid]);
-                        }
-                        $this->checkExit($worker);
-                    }
                 });
             }
             $this->client->getLog()->info('启动 TCP 连接成功!');
@@ -213,17 +161,6 @@ class Pool
     private function isUsed($pid)
     {
         return isset($this->useds[$pid]) ? $this->useds[$pid] : true;
-    }
-
-    /**
-     * 上一次活动时间
-     *
-     * @param $pid
-     * @return int|mixed
-     */
-    private function getLastActive($pid)
-    {
-        return isset($this->times[$pid]) ? $this->times[$pid] : 0;
     }
 
     /**

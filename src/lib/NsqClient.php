@@ -37,12 +37,10 @@ class NsqClient
      *
      * @param ClientInterface $client
      * @param $lookUpAddress lookup 地址
-     * @param int $min_wokers_num 进程池最小任务进程数
-     * @param int $max_wokers_num 进程池最大进程数
-     * @param int $idle_seconds 空闲超过这个时间后进程会被杀死
+     * @param int $workNum 工作进程数
      * @throws ClientException
      */
-    public function init(ClientInterface $client, $lookUpAddress, $min_wokers_num = 2, $max_wokers_num = 5, $idle_seconds = 30)
+    public function init(ClientInterface $client, $lookUpAddress, $workNum = 2)
     {
         $lookUp = new Lookup($lookUpAddress);
         $hosts = $lookUp->lookupHosts($client->getTopic());
@@ -50,9 +48,13 @@ class NsqClient
         if (empty($hosts)) {
             throw new ClientException('topic 尚未创建');
         }
+        $hosts = [
+            '47.106.161.166:4150',
+            '47.106.161.166:4150',
+        ];
         foreach ($hosts as $host) {
             $host = is_string($host) ? $host : '';
-            $mPid = (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+            $mPid = (new Pool($client, $host, $workNum))->init();
             $this->pools[$mPid] = $host;
         }
         while ($ret = Process::wait()) {
@@ -60,7 +62,8 @@ class NsqClient
             // 重启进程池
             if (isset($this->pools[$pid])) {
                 $host = $this->pools[$pid];
-                $mPid = (new Pool($client, $host, $min_wokers_num, $max_wokers_num, $idle_seconds))->init();
+                $client->getLog()->info('进程池master进程退出，重启进程池#' . $pid);
+                $mPid = (new Pool($client, $host, $workNum))->init();
                 $this->pools[$mPid] = $host;
                 unset($this->pools[$pid]);
             }

@@ -48,10 +48,6 @@ class NsqClient
         if (empty($hosts)) {
             throw new ClientException('topic 尚未创建');
         }
-        $hosts = [
-            '47.106.161.166:4150',
-            '47.106.161.166:4150',
-        ];
         foreach ($hosts as $host) {
             $host = is_string($host) ? $host : '';
             $mPid = (new Pool($client, $host, $workNum))->init();
